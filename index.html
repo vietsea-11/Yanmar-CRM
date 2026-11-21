@@ -169,6 +169,7 @@ function api(fn, ...args) {
       .withFailureHandler(e => { busy(false); const m = (e && e.message) || String(e); if (/hết hạn/.test(m)) { doLogout(true); } toast(m, true); rej(e); })[fn](...args);
   });
 }
+function devId() { let d = store('crm_dev'); if (!d) { d = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); store('crm_dev', d); } return d || 'khong-ro'; }
 function isMgr() { return S.user && (S.user.role === 'Admin' || S.user.role === 'Chủ đại lý'); }
 function stCls(s) { return s === 'Mới' ? 's-moi' : s === 'Đang chăm sóc' ? 's-dang' : s === 'Đã chốt' ? 's-chot' : s === 'Mất' ? 's-mat' : 's-chua'; }
 function iso(d) { const z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
@@ -197,7 +198,7 @@ function showLogin() {
     '<input id="pc" type="password" autocomplete="current-password" placeholder="Passcode">' +
     '<p class="hint">Nhập passcode được đại lý cấp</p>' +
     '<button class="btn" id="lg">Đăng nhập</button><div id="installBox">' + installHtml() + '</div></div>' + CREDIT + '</div>';
-  const go = () => { if (!crmApi()) return toast('Chọn đại lý trước', true); return api('login', $('#pc').value).then(r => { S.token = r.token; S.user = r.user; S.cfg = r.cfg; store('crm_tk', r.token); start(); }).catch(() => {}); };
+  const go = () => { if (!crmApi()) return toast('Chọn đại lý trước', true); return api('login', $('#pc').value, devId()).then(r => { S.token = r.token; S.user = r.user; S.cfg = r.cfg; store('crm_tk', r.token); start(); }).catch(() => {}); };
   $('#lg').onclick = go; $('#pc').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 function doLogout(silent) {
@@ -498,8 +499,26 @@ function vReport() {
       '<h2>Khách mới theo nguồn</h2><div class="card">' + bars(r.bySource) + '</div>' +
       '<h2>Lý do mất khách</h2><div class="card">' + bars(r.byLost) + '</div>' +
       '<h2>Trạng thái khách hiện tại</h2><div class="card">' + bars(r.byStatus) + '</div>' +
-      '';
+      (isMgr() ? transferHtml() : '');
   }).catch(() => {});
+}
+
+/* ---------- Chuyển khách khi nhân viên nghỉ (chủ đại lý, Admin) ---------- */
+function transferHtml() {
+  const opt = S.cfg.staff.map(s => '<option>' + esc(s) + '</option>').join('');
+  return '<h2>Chuyển khách khi nhân viên nghỉ</h2><div class="card">' +
+    '<div class="sub" style="margin-bottom:8px">Chuyển toàn bộ khách và nhiệm vụ chưa xong của một người sang người khác. Lịch sử liên hệ vẫn giữ tên người đã làm.</div>' +
+    '<label>Chuyển khách của</label><select id="tfFrom"><option value="">– Chọn –</option>' + opt + '<option value="__other">Người đã nghỉ (gõ tên)…</option></select>' +
+    '<input id="tfOther" placeholder="Tên đúng như trong STAFF" style="display:none">' +
+    '<label>Sang người</label><select id="tfTo"><option value="">– Chọn –</option>' + opt + '</select>' +
+    '<button class="btn" onclick="doTransfer()">Chuyển khách</button></div>';
+}
+document.addEventListener('change', e => { if (e.target.id === 'tfFrom') $('#tfOther').style.display = e.target.value === '__other' ? 'block' : 'none'; });
+function doTransfer() {
+  const f = $('#tfFrom').value === '__other' ? $('#tfOther').value.trim() : $('#tfFrom').value, t = $('#tfTo').value;
+  if (!f || !t) return toast('Chọn người chuyển và người nhận', true);
+  if (!confirm('Chuyển toàn bộ khách của ' + f + ' sang ' + t + '?')) return;
+  api('transferCustomers', S.token, f, t).then(n => { toast('Đã chuyển ' + n.kh + ' khách, ' + n.task + ' nhiệm vụ'); vReport(); }).catch(() => {});
 }
 
 /* ---------- Kết quả cá nhân ---------- */
