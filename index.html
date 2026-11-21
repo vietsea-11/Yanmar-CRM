@@ -460,16 +460,40 @@ function vReport() {
   let rt; $('#rm').onchange = () => { clearTimeout(rt); rt = setTimeout(() => { if ($('#rm').value) { S.rm = $('#rm').value; vReport(); } }, 900); };
   api('getReport', S.token, m).then(r => {
     const bars = arr => { const mx = Math.max(1, ...arr.map(x => x[1])); return arr.length ? arr.map(x => '<div class="bar"><span class="l">' + esc(x[0]) + '</span><span class="grow"><i style="width:' + Math.round(100 * x[1] / mx) + '%"></i></span><span class="v">' + x[1] + '</span></div>').join('') : '<div class="sub">Chưa có số liệu</div>'; };
-    $('#rb').innerHTML = '<div class="sub">Phạm vi: ' + esc(r.scope) + '</div>' +
-      '<div class="stats" style="margin-top:8px"><div class="stat"><b>' + r.newLeads + '</b><span>Khách mới</span></div><div class="stat"><b>' + r.won + '</b><span>Đã chốt</span></div><div class="stat"><b>' + r.lost + '</b><span>Mất</span></div>' +
-      '<div class="stat"><b>' + (r.winRate == null ? '–' : r.winRate + '%') + '</b><span>Tỷ lệ chốt</span></div><div class="stat"><b>' + r.contacts + '</b><span>Lần liên hệ</span></div><div class="stat"><b>' + r.customers + '</b><span>Khách được liên hệ</span></div></div>' +
+    const pm = 'T' + (+r.prevMonth.slice(5)) + '/' + r.prevMonth.slice(0, 4);
+    $('#rb').innerHTML = '<div class="sub">Phạm vi: ' + esc(r.scope) + ' · so sánh với tháng trước (' + pm + ')</div>' +
+      (r.me ? meHtml(r.me) : '') +
+      '<h2>' + (r.me ? 'Khách hàng của tôi' : 'Toàn đại lý') + '</h2><div class="stats">' +
+        kpi('Tổng khách đang có', r.now.total, r.prev.total) + kpi('Khách mới', r.now.newLeads, r.prev.newLeads) + kpi('Khách chăm sóc', r.now.caring, r.prev.caring) +
+        kpi('Đã chốt', r.now.won, r.prev.won) + kpi('Mất', r.now.lost, r.prev.lost, true) + kpi('Lần tương tác', r.now.contacts, r.prev.contacts) +
+      '</div><div class="sub" style="margin-top:6px">Tỷ lệ chốt tháng này: <b>' + (r.winRate == null ? '–' : r.winRate + '%') + '</b> · Khách được liên hệ: <b>' + r.customers + '</b></div>' +
       (r.board ? boardHtml(r.board) : '') +
       '<h2>Khách mới theo nguồn</h2><div class="card">' + bars(r.bySource) + '</div>' +
       '<h2>Lý do mất khách</h2><div class="card">' + bars(r.byLost) + '</div>' +
       '<h2>Trạng thái khách hiện tại</h2><div class="card">' + bars(r.byStatus) + '</div>' +
-      (r.board ? '' : '<h2>Theo nhân viên</h2><div class="card"><table><tr><th>Nhân viên</th><th>LH</th><th>Mới</th><th>Chốt</th><th>Mất</th><th>Trễ</th></tr>' +
-      r.staff.map(s => '<tr><td>' + esc(s.name) + '</td><td>' + s.contacts + '</td><td>' + s.newLeads + '</td><td>' + s.won + '</td><td>' + s.lost + '</td><td>' + s.overdue + '</td></tr>').join('') + '</table><div class="sub" style="margin-top:6px">LH: số lần liên hệ · Mới: khách mới · Trễ: khách quá hẹn</div></div>');
+      '';
   }).catch(() => {});
+}
+
+/* ---------- Kết quả cá nhân ---------- */
+function kpi(label, v, p, lowerIsBetter) {
+  const d = v - p;
+  const good = lowerIsBetter ? d < 0 : d > 0, bad = lowerIsBetter ? d > 0 : d < 0;
+  const col = good ? 'var(--ok)' : bad ? 'var(--bad)' : 'var(--sub)';
+  const txt = d === 0 ? '= tháng trước' : (d > 0 ? '▲ +' : '▼ ') + d + ' so với tháng trước';
+  return '<div class="stat"><b>' + v + '</b><span>' + label + '</span><div style="font-size:11px;font-weight:600;color:' + col + ';margin-top:2px">' + txt + '</div></div>';
+}
+function meHtml(me) {
+  const names = { won: 'Khách đã chốt', newLeads: 'Khách mới', contacts: 'Lần liên hệ', newCare: 'Chăm khách mới', winRate: 'Tỷ lệ chốt', onTime: 'Gọi đúng hẹn' };
+  const ds = me.prevScore == null ? '' : (me.score - me.prevScore === 0 ? 'bằng tháng trước' : (me.score > me.prevScore ? '▲ +' : '▼ ') + (me.score - me.prevScore) + ' điểm so với tháng trước');
+  return '<div class="card" style="margin-top:10px"><div class="rk"><div class="no r' + me.rank + '">' + me.rank + '</div>' +
+    '<div class="grow"><div class="name">Hạng ' + me.rank + '/' + me.of + ' trong đại lý</div><div class="sub">' + ds + (me.prevRank ? ' · tháng trước hạng ' + me.prevRank : '') + '</div></div>' +
+    '<div class="sc">' + me.score + '<small>/100 điểm</small></div></div>' +
+    '<div style="margin-top:10px">' + Object.keys(names).map(k => {
+      const got = me.parts[k], max = me.weights[k];
+      return '<div class="bar"><span class="l">' + names[k] + '</span><span class="grow"><i style="width:' + Math.round(100 * got / max) + '%"></i></span><span class="v" style="width:60px">' + Math.round(got) + '/' + max + '</span></div>';
+    }).join('') + '</div>' +
+    '<div class="sub" style="margin-top:6px">Thanh nào ngắn là chỗ cần cố thêm. Đang quá hẹn: <b>' + me.overdue + '</b> khách.</div></div>';
 }
 
 /* ---------- Bảng thi đua ---------- */
