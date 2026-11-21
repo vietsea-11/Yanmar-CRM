@@ -14,13 +14,23 @@
 <meta name="apple-mobile-web-app-title" content="Yanmar CRM">
 <script src="config.js"></script>
 <script>
+/* Chọn đại lý: ?dl=ma-dai-ly trên link, hoặc chọn ở màn hình đăng nhập. Mỗi đại lý một file dữ liệu riêng. */
+function crmDealerId() {
+  const ids = Object.keys(window.CRM_DEALERS || {});
+  let q = ''; try { q = new URLSearchParams(location.search).get('dl') || ''; } catch (e) {}
+  let saved = ''; try { saved = localStorage.getItem('crm_dl') || ''; } catch (e) {}
+  if (q && window.CRM_DEALERS[q] && q !== saved) { try { localStorage.setItem('crm_dl', q); localStorage.removeItem('crm_tk'); } catch (e) {} saved = q; }
+  if (saved && window.CRM_DEALERS[saved]) return saved;
+  return ids.length === 1 ? ids[0] : '';
+}
+function crmApi() { const d = crmDealerId(); return d ? window.CRM_DEALERS[d].api : ''; }
 /* Thay google.script.run bằng gọi API qua mạng (doPost của Apps Script) */
 window.google = { script: { get run() {
   let ok = null, fail = null;
   const p = new Proxy({}, { get(_, k) {
     if (k === 'withSuccessHandler') return f => { ok = f; return p; };
     if (k === 'withFailureHandler') return f => { fail = f; return p; };
-    return (...args) => fetch(window.CRM_API, { method: 'POST', redirect: 'follow',
+    return (...args) => fetch(crmApi(), { method: 'POST', redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: k, args }) })
       .then(r => r.json())
       .then(j => { if (j.ok) { if (ok) ok(j.data); } else if (fail) fail({ message: j.error }); })
@@ -167,10 +177,10 @@ $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeS
 /* ---------- Đăng nhập ---------- */
 function showLogin() {
   $('#nav').classList.add('hide');
-  app.innerHTML = '<div class="login"><h1>Yanmar CRM</h1><p class="sub">Nhập passcode được đại lý cấp</p>' +
+  app.innerHTML = '<div class="login"><h1>Yanmar CRM</h1>' + dealerPick() + '<p class="sub">Nhập passcode được đại lý cấp</p>' +
     '<input id="pc" type="password" autocomplete="current-password" placeholder="Passcode">' +
     '<button class="btn" id="lg">Đăng nhập</button><div id="installBox">' + installHtml() + '</div></div>';
-  const go = () => api('login', $('#pc').value).then(r => { S.token = r.token; S.user = r.user; S.cfg = r.cfg; store('crm_tk', r.token); start(); }).catch(() => {});
+  const go = () => { if (!crmApi()) return toast('Chọn đại lý trước', true); return api('login', $('#pc').value).then(r => { S.token = r.token; S.user = r.user; S.cfg = r.cfg; store('crm_tk', r.token); start(); }).catch(() => {}); };
   $('#lg').onclick = go; $('#pc').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 function doLogout(silent) {
@@ -537,6 +547,13 @@ function showInstall() { const el = document.getElementById('installBox'); if (e
 function doInstall() { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.finally(() => { deferredPrompt = null; showInstall(); }); }
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 
+function dealerPick() {
+  const all = window.CRM_DEALERS || {}, ids = Object.keys(all), cur = crmDealerId();
+  if (ids.length <= 1) return cur ? '<p class="sub">Đại lý: <b>' + esc(all[cur].name) + '</b></p>' : '';
+  return '<label>Đại lý của bạn</label><select id="dlSel" onchange="pickDealer(this.value)"><option value="">– Chọn đại lý –</option>' +
+    ids.map(i => '<option value="' + i + '"' + (i === cur ? ' selected' : '') + '>' + esc(all[i].name) + '</option>').join('') + '</select>';
+}
+function pickDealer(v) { try { localStorage.setItem('crm_dl', v); localStorage.removeItem('crm_tk'); } catch (e) {} }
 /* ---------- Khởi động ---------- */
 (function init() {
   const tk = store('crm_tk');
