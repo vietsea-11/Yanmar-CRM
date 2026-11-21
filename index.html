@@ -104,6 +104,15 @@ td:first-child,th:first-child{text-align:left}
 .hide{display:none!important}
 .install{background:#fff;border:1px dashed var(--red);border-radius:12px;padding:12px;margin:12px 0;font-size:14px}
 .install b{color:var(--red)}
+.rk{display:flex;align-items:center;gap:10px}
+.rk .no{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;background:#1C2F40;flex:none}
+.rk .no.r1{background:#DC1E37}.rk .no.r2{background:#6D98BF}.rk .no.r3{background:#B5A579}
+.rk .sc{font-size:26px;font-weight:700;color:var(--red);text-align:right;line-height:1}
+.rk .sc small{display:block;font-size:11px;color:var(--sub);font-weight:400}
+.mx{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.mx div{background:var(--bg);border-radius:8px;padding:6px 8px}
+.mx b{display:block;font-size:17px}.mx span{font-size:11px;color:var(--sub)}
+.sbar{height:6px;background:#eee;border-radius:3px;margin-top:8px;overflow:hidden}.sbar i{display:block;height:6px;background:var(--red)}
 </style>
 </head>
 <body>
@@ -454,12 +463,38 @@ function vReport() {
     $('#rb').innerHTML = '<div class="sub">Phạm vi: ' + esc(r.scope) + '</div>' +
       '<div class="stats" style="margin-top:8px"><div class="stat"><b>' + r.newLeads + '</b><span>Khách mới</span></div><div class="stat"><b>' + r.won + '</b><span>Đã chốt</span></div><div class="stat"><b>' + r.lost + '</b><span>Mất</span></div>' +
       '<div class="stat"><b>' + (r.winRate == null ? '–' : r.winRate + '%') + '</b><span>Tỷ lệ chốt</span></div><div class="stat"><b>' + r.contacts + '</b><span>Lần liên hệ</span></div><div class="stat"><b>' + r.customers + '</b><span>Khách được liên hệ</span></div></div>' +
+      (r.board ? boardHtml(r.board) : '') +
       '<h2>Khách mới theo nguồn</h2><div class="card">' + bars(r.bySource) + '</div>' +
       '<h2>Lý do mất khách</h2><div class="card">' + bars(r.byLost) + '</div>' +
       '<h2>Trạng thái khách hiện tại</h2><div class="card">' + bars(r.byStatus) + '</div>' +
-      '<h2>Theo nhân viên</h2><div class="card"><table><tr><th>Nhân viên</th><th>LH</th><th>Mới</th><th>Chốt</th><th>Mất</th><th>Trễ</th></tr>' +
-      r.staff.map(s => '<tr><td>' + esc(s.name) + '</td><td>' + s.contacts + '</td><td>' + s.newLeads + '</td><td>' + s.won + '</td><td>' + s.lost + '</td><td>' + s.overdue + '</td></tr>').join('') + '</table><div class="sub" style="margin-top:6px">LH: số lần liên hệ · Mới: khách mới · Trễ: khách quá hẹn</div></div>';
+      (r.board ? '' : '<h2>Theo nhân viên</h2><div class="card"><table><tr><th>Nhân viên</th><th>LH</th><th>Mới</th><th>Chốt</th><th>Mất</th><th>Trễ</th></tr>' +
+      r.staff.map(s => '<tr><td>' + esc(s.name) + '</td><td>' + s.contacts + '</td><td>' + s.newLeads + '</td><td>' + s.won + '</td><td>' + s.lost + '</td><td>' + s.overdue + '</td></tr>').join('') + '</table><div class="sub" style="margin-top:6px">LH: số lần liên hệ · Mới: khách mới · Trễ: khách quá hẹn</div></div>');
   }).catch(() => {});
+}
+
+/* ---------- Bảng thi đua ---------- */
+function pct(v) { return v == null ? '–' : v + '%'; }
+function boardHtml(bd) {
+  const w = bd.weights;
+  const rows = bd.list.map(b => '<div class="card"><div class="rk"><div class="no r' + b.rank + '">' + b.rank + '</div>' +
+    '<div class="grow"><div class="name">' + esc(b.name) + '</div><div class="sub">Phụ trách ' + b.total + ' khách · đang chăm sóc ' + b.caring + '</div></div>' +
+    '<div class="sc">' + b.score + '<small>/100 điểm</small></div></div>' +
+    '<div class="sbar"><i style="width:' + b.score + '%"></i></div>' +
+    '<div class="mx">' +
+      '<div><b>' + b.won + '</b><span>Đã chốt</span></div><div><b>' + b.lost + '</b><span>Mất</span></div><div><b>' + pct(b.winRate) + '</b><span>Tỷ lệ chốt</span></div>' +
+      '<div><b>' + b.newLeads + '</b><span>Khách mới</span></div><div><b>' + pct(b.newCareRate) + '</b><span>Chăm khách mới</span></div><div><b>' + b.contacts + '</b><span>Lần liên hệ</span></div>' +
+      '<div><b>' + b.customers + '</b><span>Khách được LH</span></div><div><b>' + b.overdue + '</b><span>Quá hẹn</span></div><div><b>' + pct(b.onTimeRate) + '</b><span>Đúng hẹn</span></div>' +
+    '</div></div>').join('');
+  return '<h2>Bảng thi đua nhân viên</h2>' + (bd.list.length ? rows : '<div class="empty">Chưa có nhân viên</div>') +
+    '<details class="card"><summary><b>Cách tính điểm (100 điểm)</b></summary><div style="margin-top:8px">' +
+    '<table><tr><th>Tiêu chí</th><th>Điểm</th></tr>' +
+    '<tr><td>Số khách đã chốt (so với người cao nhất)</td><td>' + w.won + '</td></tr>' +
+    '<tr><td>Số khách mới (so với người cao nhất)</td><td>' + w.newLeads + '</td></tr>' +
+    '<tr><td>Số lần liên hệ, tối đa ' + bd.cap + ' lần/ngày (so với người cao nhất)</td><td>' + w.contacts + '</td></tr>' +
+    '<tr><td>Tỷ lệ chăm khách mới (khách mới đã được cập nhật lại)</td><td>' + w.newCare + '</td></tr>' +
+    '<tr><td>Tỷ lệ chốt = Chốt / (Chốt + Mất)</td><td>' + w.winRate + '</td></tr>' +
+    '<tr><td>Tỷ lệ đúng hẹn (khách có hẹn mà chưa quá hẹn)</td><td>' + w.onTime + '</td></tr></table>' +
+    '<div class="sub" style="margin-top:8px">Chỉ xếp hạng tài khoản vai trò Nhân viên. Số liệu theo tháng đang chọn, riêng Phụ trách, Đang chăm sóc, Quá hẹn, Đúng hẹn là số hiện tại.</div></div></details>';
 }
 
 
