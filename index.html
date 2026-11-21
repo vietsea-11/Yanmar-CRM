@@ -106,10 +106,17 @@ td:first-child,th:first-child{text-align:left}
 .load.on{display:flex}
 .spin{width:36px;height:36px;border:4px solid #ddd;border-top-color:var(--red);border-radius:50%;animation:s 0.8s linear infinite}
 @keyframes s{to{transform:rotate(360deg)}}
-.login{max-width:360px;margin:15vh auto 0;padding:0 16px}
-.login h1{color:var(--red);margin:0 0 4px}
-.login .logo{display:block;height:34px;width:auto;color:var(--red);margin:0 0 10px}
-.login .app{font-size:15px;font-weight:600;color:#1C2F40;margin:0 0 18px;letter-spacing:.3px}
+.login{min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;max-width:400px;margin:0 auto;padding:max(28px,env(safe-area-inset-top)) 28px max(18px,env(safe-area-inset-bottom))}
+body:has(.login){background:#fff}
+.login .logo{display:block;height:16px;width:auto;color:var(--red)}
+.lg-mid{flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px 0 24px}
+.login .app{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--sub);margin:0 0 10px}
+.login h2{text-transform:none;font-size:28px;font-weight:600;letter-spacing:-.4px;color:var(--ink);margin:0 0 6px}
+.login .sub{margin:0 0 22px;font-size:14px}
+.login input{margin:0 0 12px;padding:13px 14px;border-color:var(--line);background:#fafafa}
+.login input:focus{outline:none;border-color:var(--ink);background:#fff}
+.login .install{border:1px solid var(--line);background:#fafafa;font-size:13px;margin:16px 0 0}
+.login .credit{margin:0;font-size:11px;line-height:1.7}
 header .logo{height:15px;width:auto;flex:none;color:#fff}
 header .sep{width:1px;height:18px;background:rgba(255,255,255,.5);flex:none}
 .credit{text-align:center;font-size:12px;color:var(--sub);margin:24px 0 4px;line-height:1.6}
@@ -185,9 +192,9 @@ $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeS
 /* ---------- Đăng nhập ---------- */
 function showLogin() {
   $('#nav').classList.add('hide');
-  app.innerHTML = '<div class="login">' + LOGO + '<p class="app">CRM CHĂM SÓC KHÁCH HÀNG</p>' + dealerPick() + '<p class="sub">Nhập passcode được đại lý cấp</p>' +
+  app.innerHTML = '<div class="login"><div>' + LOGO + '</div><div class="lg-mid"><p class="app">CRM chăm sóc khách hàng</p><h2>Đăng nhập</h2><p class="sub">Nhập passcode được đại lý cấp</p>' + dealerPick() +
     '<input id="pc" type="password" autocomplete="current-password" placeholder="Passcode">' +
-    '<button class="btn" id="lg">Đăng nhập</button><div id="installBox">' + installHtml() + '</div>' + CREDIT + '</div>';
+    '<button class="btn" id="lg">Đăng nhập</button><div id="installBox">' + installHtml() + '</div></div>' + CREDIT + '</div>';
   const go = () => { if (!crmApi()) return toast('Chọn đại lý trước', true); return api('login', $('#pc').value).then(r => { S.token = r.token; S.user = r.user; S.cfg = r.cfg; store('crm_tk', r.token); start(); }).catch(() => {}); };
   $('#lg').onclick = go; $('#pc').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
