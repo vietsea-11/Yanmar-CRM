@@ -110,10 +110,11 @@ td:first-child,th:first-child{text-align:left}
 body:has(.login){background:#fff}
 .login .logo{display:block;height:16px;width:auto;color:var(--red)}
 .lg-mid{flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px 0 24px}
-.login .app{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--sub);margin:0 0 10px}
-.login h2{text-transform:none;font-size:28px;font-weight:600;letter-spacing:-.4px;color:var(--ink);margin:0 0 6px}
-.login .sub{margin:0 0 22px;font-size:14px}
-.login input{margin:0 0 12px;padding:13px 14px;border-color:var(--line);background:#fafafa}
+.login .app{text-wrap:balance;font-size:24px;line-height:1.25;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--red);text-align:center;margin:0 0 10px}
+.login h2{text-transform:uppercase;font-size:13px;font-weight:600;letter-spacing:2px;color:var(--ink);text-align:center;margin:0 0 26px}
+.login .dl{font-size:17px;color:var(--ink);text-align:center;margin:-10px 0 22px}
+.login .hint{font-size:12px;font-style:italic;color:var(--sub);margin:0 0 14px}
+.login input{margin:0 0 6px;padding:13px 14px;border-color:var(--line);background:#fafafa}
 .login input:focus{outline:none;border-color:var(--ink);background:#fff}
 .login .install{border:1px solid var(--line);background:#fafafa;font-size:13px;margin:16px 0 0}
 .login .credit{margin:0;font-size:11px;line-height:1.7}
@@ -192,8 +193,9 @@ $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeS
 /* ---------- Đăng nhập ---------- */
 function showLogin() {
   $('#nav').classList.add('hide');
-  app.innerHTML = '<div class="login"><div>' + LOGO + '</div><div class="lg-mid"><p class="app">CRM chăm sóc khách hàng</p><h2>Đăng nhập</h2><p class="sub">Nhập passcode được đại lý cấp</p>' + dealerPick() +
+  app.innerHTML = '<div class="login"><div>' + LOGO + '</div><div class="lg-mid"><p class="app">CRM chăm sóc khách hàng</p><h2>Đăng nhập</h2>' + dealerPick() + (window.DEALER_NAME ? '<p class="dl">Đại lý: <b>' + esc(window.DEALER_NAME) + '</b></p>' : '') +
     '<input id="pc" type="password" autocomplete="current-password" placeholder="Passcode">' +
+    '<p class="hint">Nhập passcode được đại lý cấp</p>' +
     '<button class="btn" id="lg">Đăng nhập</button><div id="installBox">' + installHtml() + '</div></div>' + CREDIT + '</div>';
   const go = () => { if (!crmApi()) return toast('Chọn đại lý trước', true); return api('login', $('#pc').value).then(r => { S.token = r.token; S.user = r.user; S.cfg = r.cfg; store('crm_tk', r.token); start(); }).catch(() => {}); };
   $('#lg').onclick = go; $('#pc').onkeydown = e => { if (e.key === 'Enter') go(); };
@@ -567,7 +569,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
 
 function dealerPick() {
   const all = window.CRM_DEALERS || {}, ids = Object.keys(all), cur = crmDealerId();
-  if (ids.length <= 1) return cur ? '<p class="sub">Đại lý: <b>' + esc(all[cur].name) + '</b></p>' : '';
+  if (ids.length <= 1) return cur ? '<p class="dl">Đại lý: <b>' + esc(all[cur].name) + '</b></p>' : '';
   return '<label>Đại lý của bạn</label><select id="dlSel" onchange="pickDealer(this.value)"><option value="">– Chọn đại lý –</option>' +
     ids.map(i => '<option value="' + i + '"' + (i === cur ? ' selected' : '') + '>' + esc(all[i].name) + '</option>').join('') + '</select>';
 }
