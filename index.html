@@ -40,7 +40,7 @@ window.google = { script: { get run() {
 } } };
 </script>
 <style>
-:root{--red:#c8102e;--ink:#1d1d1f;--sub:#6b6b70;--line:#e6e6ea;--bg:#f5f5f7;--ok:#1a7f37;--warn:#b25e00;--bad:#c8102e;--blue:#0b63c5}
+:root{--red:#DC1E37;--ink:#1d1d1f;--sub:#6b6b70;--line:#e6e6ea;--bg:#f5f5f7;--ok:#1a7f37;--warn:#b25e00;--bad:#c8102e;--blue:#0b63c5}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;font:15px/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
 header{position:sticky;top:0;padding-top:max(10px,env(safe-area-inset-top));z-index:5;background:var(--red);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px}
@@ -108,6 +108,12 @@ td:first-child,th:first-child{text-align:left}
 @keyframes s{to{transform:rotate(360deg)}}
 .login{max-width:360px;margin:15vh auto 0;padding:0 16px}
 .login h1{color:var(--red);margin:0 0 4px}
+.login .logo{display:block;height:34px;width:auto;color:var(--red);margin:0 0 10px}
+.login .app{font-size:15px;font-weight:600;color:#1C2F40;margin:0 0 18px;letter-spacing:.3px}
+header .logo{height:15px;width:auto;flex:none;color:#fff}
+header .sep{width:1px;height:18px;background:rgba(255,255,255,.5);flex:none}
+.credit{text-align:center;font-size:12px;color:var(--sub);margin:24px 0 4px;line-height:1.6}
+.credit a{color:var(--red);font-weight:600;text-decoration:none}
 .seg{display:flex;background:#e9e9ee;border-radius:10px;padding:3px;margin-bottom:10px}
 .seg button{flex:1;border:0;background:none;padding:8px;border-radius:8px;font:inherit;font-size:14px}
 .seg button.on{background:#fff;font-weight:600}
@@ -166,8 +172,10 @@ document.addEventListener('click', e => {
   const g = c.parentNode; if (g.dataset.multi) c.classList.toggle('on'); else { g.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); }
   g.dispatchEvent(new CustomEvent('pick', { bubbles: true, detail: { name: g.dataset.name, val: c.dataset.val } }));
 });
+const LOGO = '<svg class="logo" role="img" aria-label="YANMAR" viewBox="0 0 141.73 17.01" xmlns="http://www.w3.org/2000/svg"><path d="M69.93 14.11 68.5 2.78C68.42 2.17 68.34 1.78 67.16 1.78L61.16 1.78C60.41 1.78 60.03 1.78 59.76 2.3L53.16 14.3C52.88 14.78 53.11 15.19 53.58 15.19L57.48 15.19C57.9002 15.2301 58.3004 15.002 58.48 14.62 58.86 13.93 59.22 13.22 59.48 12.62 59.5088 12.57 59.5623 12.5395 59.62 12.54L64.62 12.54C64.6846 12.5449 64.7399 12.5884 64.76 12.65L65 14.36C64.9838 14.796 65.3242 15.1626 65.7602 15.1787 65.8103 15.1806 65.8605 15.1776 65.91 15.17L69.12 15.17C69.8 15.17 70.05 14.84 69.93 14.11ZM64.32 9.52 61.23 9.52C61.1858 9.52141 61.1489 9.48675 61.1475 9.44259 61.1472 9.43498 61.1481 9.42737 61.15 9.42L63.75 4.34C63.75 4.26 63.87 4.23 63.9 4.34L64.46 9.34C64.47 9.48 64.42 9.52 64.32 9.52Z" fill="currentColor"/><path d="M125.05 14.11 123.62 2.78C123.54 2.16 123.46 1.78 122.29 1.78L116.29 1.78C115.53 1.78 115.15 1.78 114.88 2.29L108.28 14.29C108.01 14.78 108.28 15.19 108.71 15.19L112.6 15.19C113.035 15.2273 113.451 15.0036 113.66 14.62 114.03 13.93 114.39 13.22 114.66 12.62 114.693 12.5699 114.75 12.5399 114.81 12.54L119.81 12.54C119.875 12.5392 119.93 12.5861 119.94 12.65L120.14 14.4C120.117 14.8302 120.448 15.1973 120.878 15.22 120.935 15.223 120.993 15.2197 121.05 15.21L124.26 15.21C124.92 15.17 125.17 14.84 125.05 14.11ZM119.44 9.52 116.35 9.52C116.306 9.52141 116.269 9.48675 116.267 9.44259 116.267 9.43498 116.268 9.42737 116.27 9.42L118.87 4.34C118.87 4.25 119 4.22 119.03 4.34L119.58 9.34C119.59 9.47 119.54 9.52 119.44 9.52Z" fill="currentColor"/><path d="M102.31 14.27 103.31 8.6C103.37 8.3 103.22 8.28 103.12 8.44L98.44 14.6C98.233 14.9123 97.9013 15.12 97.53 15.17L96.39 15.17C96.0986 15.1601 95.8402 14.98 95.73 14.71L93.45 8.47C93.36 8.21 93.27 8.3 93.24 8.47L92.14 14.47C92.1047 14.8325 91.8042 15.1116 91.44 15.12L88 15.12C87.5 15.12 87.27 14.87 87.37 14.36L89.69 2.68C89.6867 2.12773 90.1316 1.6773 90.6839 1.67395 90.7227 1.67371 90.7615 1.67573 90.8 1.68L94.56 1.68C95.25 1.68 95.72 1.83 95.91 2.32L97.91 7.71C98.02 7.97 98.04 7.97 98.2 7.71L102.46 2.28C102.741 1.8364 103.248 1.58883 103.77 1.64L108.49 1.64C109.31 1.64 109.42 2.07 109.31 2.64L107 14.59C106.931 14.962 106.598 15.2264 106.22 15.21L103 15.21C102.3 15.21 102.23 14.74 102.31 14.27Z" fill="currentColor"/><path d="M81.29 7.64 82.21 2.64C82.35 1.89 82.73 1.75 83.32 1.75L86.32 1.75C86.87 1.75 87.32 1.95 87.12 2.75L84.8 14.22C84.65 14.96 84.27 15.17 83.8 15.17L81.43 15.17C81.0366 15.2177 80.6498 15.0398 80.43 14.71L77.28 9.28C77.2 9.15 77.14 9.19 77.13 9.28L76.24 14.1C76.13 14.73 75.96 15.2 75.24 15.2L71.89 15.2C71.34 15.2 71.14 14.9 71.24 14.34L73.45 2.69C73.59 1.9 74.02 1.77 74.45 1.77L76.9 1.77C77.5 1.77 77.79 2 78.18 2.66L81.18 7.66C81.15 7.73 81.27 7.78 81.29 7.64Z" fill="currentColor"/><path d="M139.25 1.71 129.85 1.71C128.79 1.71 128.54 1.9 128.4 2.58L126.11 14.34C126.01 14.87 126.11 15.11 126.75 15.15 127.09 15.15 129.94 15.15 130.24 15.15 130.665 15.1981 131.053 14.9028 131.12 14.48 131.42 13.19 131.8 11.15 131.89 10.7 131.89 10.48 131.94 10.46 132.31 10.46L134.93 10.46C135.36 10.46 135.53 10.67 135.44 11.27L134.93 14.42C134.86 14.84 135.03 15.15 135.53 15.15 136.19 15.15 138.53 15.15 138.96 15.15 139.61 15.15 139.88 15 140.02 14.15L140.56 11.2C140.72 10.28 140.74 8.99 139.26 8.5 139.19 8.5 139.2 8.41 139.26 8.4 140.239 8.18807 141.013 7.4406 141.26 6.47 141.461 5.70755 141.612 4.93249 141.71 4.15 142 2.47 140.92 1.71 139.25 1.71ZM136.62 5.22C136.62 5.5 136.43 6.36 136.31 6.89 136.19 7.42 135.92 7.66 135.04 7.66L132.64 7.66C132.48 7.66 132.45 7.66 132.48 7.48L133 4.62C133.018 4.57116 133.068 4.54193 133.12 4.55 133.74 4.55 135.84 4.55 136.05 4.55 136.53 4.59 136.65 4.79 136.62 5.22Z" fill="currentColor"/><path d="M48.25 6.29 51.69 2.07C51.8256 1.83009 52.0847 1.68698 52.36 1.7L57 1.7C57.66 1.7 57.55 2.13 57.39 2.33L50.53 10.6C50.477 10.7074 50.4399 10.8219 50.42 10.94L49.61 14.69C49.53 15.1 49.17 15.26 48.72 15.26L45.22 15.26C44.49 15.26 44.44 14.85 44.53 14.37L45.2 11.07C45.2363 10.9767 45.2363 10.8733 45.2 10.78L40.73 2.24C40.6 1.95 40.8 1.7 41.18 1.7L45.11 1.7C45.4399 1.66492 45.7601 1.82501 45.93 2.11L47.93 6.29C48.05 6.47 48.15 6.41 48.25 6.29Z" fill="currentColor"/><path d="M17.89 16.96 33.91 10.32 33.91 6.28 17.89 12.92 17.89 16.96Z" fill="currentColor"/><path d="M16.95 7.03 0 0 0 4.04 16.95 11.06 33.91 4.04 33.91 0 16.95 7.03Z" fill="currentColor"/><path d="M0 10.32 16.02 16.96 16.02 12.92 0 6.28 0 10.32Z" fill="currentColor"/></svg>';
+const CREDIT = '<div class="credit">Hotline hỗ trợ: <a href="tel:0938511355">0938.511.355</a><br>(c) Copyright by Viet_Yanmar Vietnam</div>';
 function header(title, back) {
-  return '<header>' + (back ? '<button onclick="' + back + '">&larr;</button>' : '') + '<h1>' + esc(title) + '</h1>' +
+  return '<header>' + (back ? '<button onclick="' + back + '">&larr;</button>' : LOGO + '<span class="sep"></span>') + '<h1>' + esc(title) + '</h1>' +
     (back ? '' : '<button onclick="doLogout()">Thoát</button>') + '</header>';
 }
 function openSheet(html) { const o = $('#sheetBox'), n = o.cloneNode(false); o.replaceWith(n); n.innerHTML = html; $('#sheet').classList.add('on'); }
@@ -177,9 +185,9 @@ $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeS
 /* ---------- Đăng nhập ---------- */
 function showLogin() {
   $('#nav').classList.add('hide');
-  app.innerHTML = '<div class="login"><h1>Yanmar CRM</h1>' + dealerPick() + '<p class="sub">Nhập passcode được đại lý cấp</p>' +
+  app.innerHTML = '<div class="login">' + LOGO + '<p class="app">CRM CHĂM SÓC KHÁCH HÀNG</p>' + dealerPick() + '<p class="sub">Nhập passcode được đại lý cấp</p>' +
     '<input id="pc" type="password" autocomplete="current-password" placeholder="Passcode">' +
-    '<button class="btn" id="lg">Đăng nhập</button><div id="installBox">' + installHtml() + '</div></div>';
+    '<button class="btn" id="lg">Đăng nhập</button><div id="installBox">' + installHtml() + '</div>' + CREDIT + '</div>';
   const go = () => { if (!crmApi()) return toast('Chọn đại lý trước', true); return api('login', $('#pc').value).then(r => { S.token = r.token; S.user = r.user; S.cfg = r.cfg; store('crm_tk', r.token); start(); }).catch(() => {}); };
   $('#lg').onclick = go; $('#pc').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
@@ -531,6 +539,9 @@ function boardHtml(bd) {
     '<div class="sub" style="margin-top:8px">Chỉ xếp hạng tài khoản vai trò Nhân viên. Số liệu theo tháng đang chọn, riêng Phụ trách, Đang chăm sóc, Quá hẹn, Đúng hẹn là số hiện tại.</div></div></details>';
 }
 
+/* Chân trang hotline + bản quyền ở cuối mỗi trang */
+new MutationObserver(() => { const m = app.querySelector('main'); if (!m) return; const c = m.querySelector(':scope > .credit'); if (!c) m.insertAdjacentHTML('beforeend', CREDIT); else if (c !== m.lastElementChild) m.appendChild(c); })
+  .observe(app, { childList: true, subtree: true });
 
 /* ---------- Cài app lên màn hình chính ---------- */
 let deferredPrompt = null;
