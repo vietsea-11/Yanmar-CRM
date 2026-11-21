@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yanmar CRM</title>
+<meta name="theme-color" content="#DC1E37">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Yanmar CRM">
+<script src="config.js"></script>
+<script>
+/* Thay google.script.run bằng gọi API qua mạng (doPost của Apps Script) */
+window.google = { script: { get run() {
+  let ok = null, fail = null;
+  const p = new Proxy({}, { get(_, k) {
+    if (k === 'withSuccessHandler') return f => { ok = f; return p; };
+    if (k === 'withFailureHandler') return f => { fail = f; return p; };
+    return (...args) => fetch(window.CRM_API, { method: 'POST', redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: k, args }) })
+      .then(r => r.json())
+      .then(j => { if (j.ok) { if (ok) ok(j.data); } else if (fail) fail({ message: j.error }); })
+      .catch(() => { if (fail) fail({ message: 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.' }); });
+  } });
+  return p;
+} } };
+</script>
+<style>
+:root{--red:#c8102e;--ink:#1d1d1f;--sub:#6b6b70;--line:#e6e6ea;--bg:#f5f5f7;--ok:#1a7f37;--warn:#b25e00;--bad:#c8102e;--blue:#0b63c5}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font:15px/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header{position:sticky;top:0;padding-top:max(10px,env(safe-area-inset-top));z-index:5;background:var(--red);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px}
+header h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header button{background:none;border:0;color:#fff;font-size:15px;padding:4px 6px}
+main{padding:12px 12px 90px;max-width:720px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:6;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:8px 2px 10px;font-size:11px;white-space:nowrap;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button b{font-size:20px;line-height:1}
+nav button.on{color:var(--red);font-weight:600}
+nav .add b{background:var(--red);color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-top:-4px}
+.card{background:#fff;border-radius:12px;padding:12px;margin-bottom:10px;border:1px solid var(--line)}
+.tap{cursor:pointer}
+.row{display:flex;align-items:center;gap:8px}
+.grow{flex:1;min-width:0}
+.name{font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{color:var(--sub);font-size:13px}
+.badge{font-size:12px;padding:2px 8px;border-radius:20px;white-space:nowrap;font-weight:600}
+.s-moi{background:#e7f1fb;color:var(--blue)}.s-dang{background:#fff4e0;color:var(--warn)}.s-chot{background:#e5f4e4;color:var(--ok)}.s-mat{background:#f0efec;color:#555}.s-chua{background:#efedff;color:#5b4bc4}
+.tag{font-size:12px;color:var(--bad);font-weight:600}
+.flag{font-size:12px;color:#5b4bc4}
+ol.lh{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px dashed var(--line)}
+ol.lh li{font-size:13px;padding:2px 0;display:flex;gap:8px}
+ol.lh li span{color:var(--sub);white-space:nowrap;min-width:78px}
+ol.lh li em{font-style:normal;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+h2{font-size:15px;margin:18px 2px 8px;color:var(--sub);text-transform:uppercase;letter-spacing:.3px}
+h2 small{text-transform:none;font-weight:400}
+input,select,textarea{width:100%;font:inherit;padding:11px 12px;border:1px solid #cfcfd4;border-radius:10px;background:#fff;margin:4px 0 10px}
+textarea{min-height:80px;resize:vertical}
+label{font-size:13px;color:var(--sub);font-weight:600}
+.btn{display:block;width:100%;border:0;border-radius:10px;padding:13px;font:inherit;font-weight:600;background:var(--red);color:#fff}
+.btn:disabled{opacity:.5}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid #cfcfd4}
+.btn.sm{display:inline-block;width:auto;padding:7px 12px;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
+.chip{border:1px solid #cfcfd4;background:#fff;border-radius:20px;padding:7px 12px;font-size:14px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.acts{display:flex;gap:8px;margin-top:10px}
+.acts a,.acts button{flex:1;text-align:center;text-decoration:none;border-radius:10px;padding:10px;font-weight:600;font-size:14px;border:1px solid #cfcfd4;background:#fff;color:var(--ink)}
+.acts .call{background:var(--ok);color:#fff;border-color:var(--ok)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
+.stat b{display:block;font-size:22px}
+.stat span{font-size:12px;color:var(--sub)}
+.stat.tap:active{background:#f0f0f3}
+.bar{display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0}
+.bar i{display:block;height:8px;background:var(--red);border-radius:4px}
+.bar .l{width:42%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .v{width:34px;text-align:right;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:right}
+td:first-child,th:first-child{text-align:left}
+.tl{border-left:2px solid var(--line);margin-left:6px;padding-left:12px}
+.tl .it{position:relative;padding:0 0 14px}
+.tl .it:before{content:"";position:absolute;left:-18px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--red)}
+.empty{text-align:center;color:var(--sub);padding:24px}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;display:none;align-items:flex-end;justify-content:center}
+.sheet.on{display:flex}
+.sheet .box{background:var(--bg);width:100%;max-width:720px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:14px 14px 24px}
+.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;display:none;max-width:90%}
+.toast.err{background:var(--bad)}
+.load{position:fixed;inset:0;background:rgba(255,255,255,.6);z-index:25;display:none;align-items:center;justify-content:center}
+.load.on{display:flex}
+.spin{width:36px;height:36px;border:4px solid #ddd;border-top-color:var(--red);border-radius:50%;animation:s 0.8s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.login{max-width:360px;margin:15vh auto 0;padding:0 16px}
+.login h1{color:var(--red);margin:0 0 4px}
+.seg{display:flex;background:#e9e9ee;border-radius:10px;padding:3px;margin-bottom:10px}
+.seg button{flex:1;border:0;background:none;padding:8px;border-radius:8px;font:inherit;font-size:14px}
+.seg button.on{background:#fff;font-weight:600}
+.hide{display:none!important}
+.install{background:#fff;border:1px dashed var(--red);border-radius:12px;padding:12px;margin:12px 0;font-size:14px}
+.install b{color:var(--red)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<nav id="nav" class="hide">
+  <button data-v="today"><b>&#9737;</b>Hôm nay</button>
+  <button data-v="cust"><b>&#9776;</b>Khách hàng</button>
+  <button data-v="add" class="add"><b>+</b>Thêm khách</button>
+  <button data-v="task"><b>&#10003;</b>Nhiệm vụ</button>
+  <button data-v="report"><b>&#9636;</b>Báo cáo</button>
+</nav>
+<div id="sheet" class="sheet"><div class="box" id="sheetBox"></div></div>
+<div id="toast" class="toast"></div>
+<div id="load" class="load"><div class="spin"></div></div>
+
+<script>
+/* ---------- Nền tảng ---------- */
+const S = { token: null, user: null, cfg: null, view: 'today', q: { text: '', status: '', owner: '', special: '', page: 0 }, list: [], total: 0, cur: null };
+const $ = s => document.querySelector(s);
+const app = $('#app');
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', err ? 4500 : 2500); }
+let loading = 0;
+function busy(on) { loading += on ? 1 : -1; $('#load').classList.toggle('on', loading > 0); }
+function api(fn, ...args) {
+  busy(true);
+  return new Promise((res, rej) => {
+    google.script.run.withSuccessHandler(r => { busy(false); res(r); })
+      .withFailureHandler(e => { busy(false); const m = (e && e.message) || String(e); if (/hết hạn/.test(m)) { doLogout(true); } toast(m, true); rej(e); })[fn](...args);
+  });
+}
+function isMgr() { return S.user && (S.user.role === 'Admin' || S.user.role === 'Chủ đại lý'); }
+function stCls(s) { return s === 'Mới' ? 's-moi' : s === 'Đang chăm sóc' ? 's-dang' : s === 'Đã chốt' ? 's-chot' : s === 'Mất' ? 's-mat' : 's-chua'; }
+function iso(d) { const z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
+function addDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); }
+function chips(name, opts, val) { return '<div class="chips" data-name="' + name + '">' + opts.map(o => '<button type="button" class="chip' + (o === val ? ' on' : '') + '" data-val="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div>'; }
+function chipVal(root, name) { const b = root.querySelector('.chips[data-name="' + name + '"] .chip.on'); return b ? b.dataset.val : ''; }
+document.addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  const g = c.parentNode; if (g.dataset.multi) c.classList.toggle('on'); else { g.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); }
+  g.dispatchEvent(new CustomEvent('pick', { bubbles: true, detail: { name: g.dataset.name, val: c.dataset.val } }));
+});
+function header(title, back) {
+  return '<header>' + (back ? '<button onclick="' + back + '">&larr;</button>' : '') + '<h1>' + esc(title) + '</h1>' +
+    (back ? '' : '<button onclick="doLogout()">Thoát</button>') + '</header>';
+}
+function openSheet(html) { const o = $('#sheetBox'), n = o.cloneNode(false); o.replaceWith(n); n.innerHTML = html; $('#sheet').classList.add('on'); }
+function closeSheet() { $('#sheet').classList.remove('on'); }
+$('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
+
+/* ---------- Đăng nhập ---------- */
+function showLogin() {
+  $('#nav').classList.add('hide');
+  app.innerHTML = '<div class="login"><h1>Yanmar CRM</h1><p class="sub">Nhập passcode được đại lý cấp</p>' +
+    '<input id="pc" type="password" autocomplete="current-password" placeholder="Passcode">' +
+    '<button class="btn" id="lg">Đăng nhập</button><div id="installBox">' + installHtml() + '</div></div>';
+  const go = () => api('login', $('#pc').value).then(r => { S.token = r.token; S.user = r.user; S.cfg = r.cfg; store('crm_tk', r.token); start(); }).catch(() => {});
+  $('#lg').onclick = go; $('#pc').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+function doLogout(silent) {
+  if (S.token && !silent) google.script.run.logout(S.token);
+  S.token = null; store('crm_tk', null); showLogin();
+}
+function start() {
+  $('#nav').classList.remove('hide');
+  go('today');
+}
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => go(b.dataset.v));
+function go(v) {
+  S.view = v;
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  window.scrollTo(0, 0);
+  ({ today: vToday, cust: vCust, add: vAdd, task: vTask, report: vReport })[v]();
+}
+
+/* ---------- Thẻ khách ---------- */
+function card(c) {
+  const lh = c.contacts.length ? '<ol class="lh">' + c.contacts.map(x => '<li><span>' + esc(x.d) + '</span><em><b>' + esc(x.form) + '</b>' + (x.note ? ' – ' + esc(x.note) : '') + '</em></li>').join('') + '</ol>' : '';
+  return '<div class="card tap" onclick="openCust(\'' + esc(c.phone) + '\')">' +
+    '<div class="row"><div class="grow"><div class="name">' + esc(c.name || '(chưa có tên)') + '</div>' +
+    '<div class="sub">' + esc(c.phone) + (c.addr || c.huyen ? ' · ' + esc([c.addr, c.huyen].filter(Boolean).join(', ')) : '') + (c.model ? ' · ' + esc(c.model) : '') + '</div></div>' +
+    '<span class="badge ' + stCls(c.status) + '">' + esc(c.status) + '</span></div>' +
+    (c.overdue ? '<div class="tag">Quá hẹn từ ' + esc(c.appt) + '</div>' : c.dueToday ? '<div class="tag" style="color:var(--warn)">Hẹn hôm nay</div>' : c.appt ? '<div class="sub">Hẹn: ' + esc(c.appt) + '</div>' : '') +
+    (c.flag ? '<div class="flag">' + esc(c.flag) + ' – cần xác nhận</div>' : '') +
+    (isMgr() ? '<div class="sub">Phụ trách: ' + esc(c.owner || 'chưa giao') + '</div>' : '') + lh + '</div>';
+}
+
+/* ---------- Hôm nay ---------- */
+function vToday() {
+  app.innerHTML = header('Việc hôm nay') + '<main id="m"></main>';
+  api('getToday', S.token).then(r => {
+    let h = '<div class="sub">Xin chào ' + esc(r.user.name) + ' (' + esc(r.user.role) + ')</div><div id="installBox">' + installHtml() + '</div>';
+    if (r.team) h += '<h2>Toàn đại lý</h2><div class="stats">' +
+      '<div class="stat tap" onclick="filterGo({special:\'overdue\'})"><b>' + r.team.overdue + '</b><span>Khách quá hẹn</span></div>' +
+      '<div class="stat tap" onclick="filterGo({special:\'unassigned\'})"><b>' + r.team.unassigned + '</b><span>Chưa giao người</span></div>' +
+      '<div class="stat tap" onclick="filterGo({special:\'flag\'})"><b>' + r.team.flag + '</b><span>Cần xác nhận</span></div></div>';
+    h += '<h2>Hẹn hôm nay <small>(' + r.today.length + ')</small></h2>' + (r.today.length ? r.today.map(card).join('') : '<div class="empty">Không có hẹn hôm nay</div>');
+    if (r.fresh.length) h += '<h2>Khách mới chưa hẹn <small>(' + r.fresh.length + ')</small></h2>' + r.fresh.map(card).join('');
+    h += '<h2>Quá hẹn <small>(' + r.overdueTotal + ')</small></h2>' + (r.overdue.length ? r.overdue.map(card).join('') : '<div class="empty">Không có khách quá hẹn</div>');
+    if (r.overdueTotal > r.overdue.length) h += '<button class="btn ghost" onclick="filterGo({special:\'overdue\'})">Xem tất cả ' + r.overdueTotal + ' khách quá hẹn</button>';
+    if (r.tasks.length) h += '<h2>Nhiệm vụ được giao <small>(' + r.tasks.length + ')</small></h2>' + r.tasks.slice(0, 5).map(taskCard).join('') +
+      (r.tasks.length > 5 ? '<button class="btn ghost" onclick="go(\'task\')">Xem tất cả ' + r.tasks.length + ' nhiệm vụ</button>' : '');
+    $('#m').innerHTML = h;
+  }).catch(() => {});
+}
+function filterGo(q) { S.q = Object.assign({ text: '', status: '', owner: '', special: '', page: 0 }, q); go('cust'); }
+
+/* ---------- Danh sách khách ---------- */
+const STATUSES = ['Mới', 'Đang chăm sóc', 'Đã chốt', 'Mất', 'Chưa phân loại'];
+function vCust() {
+  const q = S.q;
+  const sp = { overdue: 'Quá hẹn', unassigned: 'Chưa giao người', flag: 'Cần xác nhận' };
+  app.innerHTML = header('Khách hàng') + '<main>' +
+    '<input id="qt" type="search" placeholder="Tìm tên, số điện thoại, xã" value="' + esc(q.text) + '">' +
+    '<select id="qs"><option value="">Tất cả trạng thái</option>' + STATUSES.map(s => '<option' + (s === q.status ? ' selected' : '') + '>' + s + '</option>').join('') + '</select>' +
+    (isMgr() ? '<select id="qo"><option value="">Tất cả nhân viên</option>' + S.cfg.staff.map(s => '<option' + (s === q.owner ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' : '') +
+    (q.special ? '<div class="row" style="margin-bottom:8px"><span class="badge s-chua">' + sp[q.special] + '</span><button class="btn sm ghost" onclick="S.q.special=\'\';loadList(0)">Bỏ lọc</button></div>' : '') +
+    '<div id="cnt" class="sub"></div><div id="list"></div><button id="more" class="btn ghost hide">Xem thêm</button></main>';
+  let t; $('#qt').oninput = () => { clearTimeout(t); t = setTimeout(() => { S.q.text = $('#qt').value; loadList(0); }, 400); };
+  $('#qs').onchange = () => { S.q.status = $('#qs').value; loadList(0); };
+  if ($('#qo')) $('#qo').onchange = () => { S.q.owner = $('#qo').value; loadList(0); };
+  $('#more').onclick = () => loadList(S.q.page + 1);
+  loadList(0);
+}
+function loadList(page) {
+  S.q.page = page;
+  api('listCustomers', S.token, S.q).then(r => {
+    S.list = page ? S.list.concat(r.items) : r.items; S.total = r.total;
+    $('#cnt').textContent = r.total + ' khách, liên hệ gần nhất ở trên';
+    $('#list').innerHTML = S.list.length ? S.list.map(card).join('') : '<div class="empty">Không có khách phù hợp</div>';
+    $('#more').classList.toggle('hide', S.list.length >= r.total);
+  }).catch(() => {});
+}
+
+/* ---------- Hồ sơ khách ---------- */
+function openCust(phone) {
+  api('getCustomer', S.token, phone).then(c => { S.cur = c; vDetail(); }).catch(() => {});
+}
+function vDetail() {
+  const c = S.cur;
+  $('#nav').classList.add('hide');
+  const back = S.view === 'cust' ? "backToList()" : "backTo()";
+  let h = header(c.name || c.phone, back) + '<main>' +
+    '<div class="card"><div class="row"><div class="grow"><div class="name">' + esc(c.name) + '</div><div class="sub">' + esc(c.phone) + '</div></div>' +
+    '<span class="badge ' + stCls(c.status) + '">' + esc(c.status) + '</span></div>' +
+    '<div class="sub" style="margin-top:6px">' + esc([c.addr, c.huyen, c.tinh].filter(Boolean).join(', ')) + '</div>' +
+    '<div class="sub">Model: ' + esc(c.model || '–') + ' · Đánh giá: ' + esc(c.rating || '–') + ' · Nguồn: ' + esc(c.source || '–') + '</div>' +
+    (c.appt ? '<div class="' + (c.overdue ? 'tag' : 'sub') + '">Hẹn: ' + esc(c.appt) + (c.overdue ? ' (quá hẹn)' : '') + '</div>' : '') +
+    (c.lost ? '<div class="sub">Lý do mất: ' + esc(c.lost) + '</div>' : '') +
+    (c.flag ? '<div class="flag">' + esc(c.flag) + ' – chọn đúng trạng thái khi cập nhật</div>' : '') +
+    '<div class="acts"><a class="call" href="tel:' + esc(c.phone) + '">Gọi</a><a href="https://zalo.me/' + esc(c.phone) + '" target="_blank">Zalo</a></div>' +
+    '<button class="btn" style="margin-top:10px" onclick="formContact()">+ Cập nhật lần liên hệ</button></div>';
+  if (isMgr()) h += '<div class="card"><label>Người phụ trách</label><select id="own"><option value="">– Chưa giao –</option>' +
+    S.cfg.staff.map(s => '<option' + (s === c.owner ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
+    '<button class="btn sm ghost" onclick="saveOwner()">Lưu người phụ trách</button></div>';
+  h += '<h2>Lịch sử liên hệ <small>(' + c.historyTotal + ' lần, mới nhất ở trên)</small></h2><div class="card tl" id="hist">' + histHtml(c.history) + '</div>' +
+    (c.historyTotal > c.history.length ? '<button class="btn ghost" id="moreHist" onclick="loadAllHist()">Xem toàn bộ ' + c.historyTotal + ' lần liên hệ</button>' : '') + '</main>';
+  app.innerHTML = h; window.scrollTo(0, 0);
+}
+function loadAllHist() {
+  api('getHistory', S.token, S.cur.phone).then(r => { $('#hist').innerHTML = histHtml(r.items); $('#moreHist').remove(); }).catch(() => {});
+}
+function histHtml(list) {
+  return (list.length ? list.map(x => '<div class="it"><div class="row"><b class="grow">' + esc(x.d) + ' · ' + esc(x.form) + '</b>' +
+      (x.status ? '<span class="badge ' + stCls(x.status) + '">' + esc(x.status) + '</span>' : '') + '</div>' +
+      '<div class="sub">' + esc(x.by) + (x.model ? ' · ' + esc(x.model) : '') + (x.appt ? ' · hẹn ' + esc(x.appt) : '') + (x.lost ? ' · ' + esc(x.lost) : '') + '</div>' +
+      (x.note ? '<div>' + esc(x.note) + '</div>' : '') + (fileLink(x.file)) + '</div>').join('') : '<div class="empty">Chưa có lịch sử</div>');
+}
+function fileLink(f) {
+  if (!f) return '';
+  let url = f; try { const o = JSON.parse(f); url = o.url || ''; } catch (e) { }
+  return /^https:\/\/drive\.google\.com\//.test(url) ? '<a href="' + esc(url) + '" target="_blank" class="sub">Xem tệp đính kèm</a>' : '';
+}
+function backTo() { $('#nav').classList.remove('hide'); go(S.view); }
+function backToList() { $('#nav').classList.remove('hide'); go('cust'); }
+function saveOwner() {
+  const o = $('#own').value; if (!o) return toast('Chọn nhân viên', true);
+  api('assignOwner', S.token, S.cur.phone, o).then(() => { S.cur.owner = o; toast('Đã giao khách cho ' + o); }).catch(() => {});
+}
+
+/* ---------- Form cập nhật (30 giây) ---------- */
+function formContact() {
+  const c = S.cur, cfg = S.cfg;
+  const st0 = c.status === 'Chưa phân loại' || c.status === 'Mới' ? 'Đang chăm sóc' : c.status;
+  openSheet('<div class="row"><b class="grow" style="font-size:17px">Cập nhật: ' + esc(c.name) + '</b><button class="btn sm ghost" onclick="closeSheet()">Đóng</button></div>' +
+    '<label>Hình thức</label>' + chips('form', cfg.forms, 'Gọi điện') +
+    '<label>Trạng thái</label>' + chips('status', ['Đang chăm sóc', 'Đã chốt', 'Mất'], st0) +
+    '<div id="lostBox" class="' + (st0 === 'Mất' ? '' : 'hide') + '"><label>Lý do mất</label>' + chips('lost', cfg.lost, '') + '</div>' +
+    '<label>Ghi chú</label><textarea id="fn" placeholder="Khách nói gì, cần gì..."></textarea>' +
+    '<div id="apptBox" class="' + (st0 === 'Đang chăm sóc' ? '' : 'hide') + '"><label>Hẹn gọi lại</label>' +
+    chips('quick', ['Ngày mai', '3 ngày', '1 tuần', '2 tuần', '1 tháng'], '') +
+    '<input id="fa" type="date" min="' + iso(new Date()) + '" value="' + esc(c.overdue ? '' : c.apptIso) + '"></div>' +
+    '<details><summary class="sub" style="margin-bottom:8px">Model, đánh giá</summary>' +
+    '<label>Model quan tâm</label><input id="fm" list="models" value="' + esc(c.model) + '"><datalist id="models">' + cfg.models.map(m => '<option value="' + esc(m) + '">').join('') + '</datalist>' +
+    '<label>Đánh giá</label>' + chips('rating', ['Thấp', 'Trung bình', 'Cao'], c.rating) + '</details>' +
+    '<button class="btn" id="fsave">Lưu</button>');
+  const box = $('#sheetBox');
+  box.addEventListener('pick', e => {
+    const { name, val } = e.detail;
+    if (name === 'status') { $('#lostBox').classList.toggle('hide', val !== 'Mất'); $('#apptBox').classList.toggle('hide', val !== 'Đang chăm sóc'); }
+    if (name === 'quick') $('#fa').value = addDays({ 'Ngày mai': 1, '3 ngày': 3, '1 tuần': 7, '2 tuần': 14, '1 tháng': 30 }[val]);
+  });
+  $('#fsave').onclick = () => {
+    const p = { phone: c.phone, form: chipVal(box, 'form'), status: chipVal(box, 'status'), lost: chipVal(box, 'lost'), note: $('#fn').value, appt: $('#fa').value, model: $('#fm').value, rating: chipVal(box, 'rating') };
+    if (p.status === 'Mất' && !p.lost) return toast('Chọn lý do mất khách', true);
+    if (p.status === 'Đang chăm sóc' && !p.appt && !confirm('Chưa đặt ngày hẹn gọi lại. Vẫn lưu?')) return;
+    $('#fsave').disabled = true;
+    api('saveContact', S.token, p).then(() => { closeSheet(); toast('Đã lưu'); openCust(c.phone); }).catch(() => { $('#fsave').disabled = false; });
+  };
+}
+
+/* ---------- Thêm khách ---------- */
+function vAdd() {
+  const cfg = S.cfg;
+  app.innerHTML = header('Thêm khách mới') + '<main><div class="seg"><button class="on">Một khách</button><button onclick="vEvent()">Khách từ sự kiện (QR)</button></div><div class="card" id="fa0">' +
+    '<label>Số điện thoại *</label><input id="np" type="tel" inputmode="numeric" placeholder="0912345678"><div id="npm" class="sub" style="margin:-6px 0 8px"></div>' +
+    '<label>Tên khách *</label><input id="nn" placeholder="Anh Hùng">' +
+    '<label>Nguồn *</label>' + chips('source', cfg.sources, '') +
+    '<label>Hình thức liên hệ</label>' + chips('form', cfg.forms, 'Gọi điện') +
+    '<label>Thôn, xã</label><input id="na">' +
+    '<label>Huyện (cũ)</label><input id="nh">' +
+    '<label>Tỉnh</label><select id="nt">' + cfg.provinces.map(p => '<option>' + esc(p) + '</option>').join('') + '</select>' +
+    '<label>Model quan tâm</label><input id="nm" list="models2"><datalist id="models2">' + cfg.models.map(m => '<option value="' + esc(m) + '">').join('') + '</datalist>' +
+    '<label>Ghi chú</label><textarea id="nnote"></textarea>' +
+    '<label>Hẹn gọi lại</label>' + chips('quick', ['Ngày mai', '3 ngày', '1 tuần'], '') + '<input id="nd" type="date" min="' + iso(new Date()) + '">' +
+    (isMgr() ? '<label>Giao cho</label><select id="no"><option value="">Tôi</option><option value="__none">– Chưa giao –</option>' + cfg.staff.map(s => '<option>' + esc(s) + '</option>').join('') + '</select>' : '') +
+    '<button class="btn" id="nsave">Lưu khách</button></div></main>';
+  const box = $('#fa0');
+  box.addEventListener('pick', e => { if (e.detail.name === 'quick') $('#nd').value = addDays({ 'Ngày mai': 1, '3 ngày': 3, '1 tuần': 7 }[e.detail.val]); });
+  $('#np').oninput = () => {
+    let v = $('#np').value.replace(/\D/g, ''); if (v.length === 11 && v.indexOf('84') === 0) v = '0' + v.slice(2);
+    $('#npm').textContent = !v ? '' : /^0\d{9}$/.test(v) ? 'Số hợp lệ' : 'Cần 10 chữ số, bắt đầu bằng 0 (đang có ' + v.length + ')';
+    $('#npm').style.color = /^0\d{9}$/.test(v) ? 'var(--ok)' : 'var(--bad)';
+  };
+  $('#nsave').onclick = () => {
+    const p = { phone: $('#np').value, name: $('#nn').value, source: chipVal(box, 'source'), form: chipVal(box, 'form'), addr: $('#na').value, huyen: $('#nh').value, tinh: $('#nt').value, model: $('#nm').value, note: $('#nnote').value, appt: $('#nd').value, owner: $('#no') ? $('#no').value : '' };
+    if (!p.source) return toast('Chọn nguồn khách', true);
+    $('#nsave').disabled = true;
+    api('createLead', S.token, p).then(r => {
+      if (r.exists) { toast('Số này đã có trong danh sách, mở hồ sơ cũ để cập nhật'); }
+      else toast('Đã thêm khách');
+      S.view = 'cust'; openCust(r.phone);
+    }).catch(() => { $('#nsave').disabled = false; });
+  };
+}
+
+/* ---------- Khách từ sự kiện ---------- */
+const KIND = { 'mới': ['Khách mới', 's-moi'], 'đã có': ['Đã có, ghi thêm lần liên hệ', 's-dang'], 'đã có - người khác': ['Khách của người khác, ghi thêm lần liên hệ', 's-mat'], 'sai': ['SĐT sai, bỏ qua', 's-chua'], 'trùng': ['Khai trùng, bỏ qua', 's-chua'] };
+function vEvent() {
+  const today = iso(new Date());
+  app.innerHTML = header('Khách từ sự kiện') + '<main><div class="seg"><button onclick="go(\'add\')">Một khách</button><button class="on">Khách từ sự kiện (QR)</button></div>' +
+    '<details class="card" id="evNew"><summary><b>+ Tạo sự kiện mới và mã QR</b></summary><div style="margin-top:10px">' +
+    '<label>Tên sự kiện *</label><input id="en" placeholder="Hội thảo YM351A xã Yên Trường">' +
+    '<label>Ngày diễn ra</label><input id="ed" type="date" value="' + today + '">' +
+    '<label>Loại sự kiện</label>' + chips('form', ['Hội thảo', 'Chạy thử', 'Trình diễn'], 'Hội thảo') +
+    '<button class="btn" id="ecreate">Tạo mã QR</button></div></details>' +
+    '<div id="eqr"></div><h2>Sự kiện của bạn</h2><div id="elist"></div><div id="eres"></div></main>';
+  $('#ecreate').onclick = () => {
+    const p = { name: $('#en').value, date: $('#ed').value, form: chipVal($('#evNew'), 'form') };
+    $('#ecreate').disabled = true;
+    api('createEvent', S.token, p).then(r => { showQR(r); loadEvents(); $('#ecreate').disabled = false; }).catch(() => { $('#ecreate').disabled = false; });
+  };
+  loadEvents();
+}
+function showQR(e) {
+  const qr = 'https://quickchart.io/qr?size=320&margin=2&text=' + encodeURIComponent(e.url);
+  $('#eqr').innerHTML = '<div class="card" style="text-align:center"><b>' + esc(e.name) + '</b><div class="sub">Cho khách quét mã này để đăng ký</div>' +
+    '<img src="' + qr + '" alt="Mã QR" style="width:240px;height:240px;margin:10px auto;display:block">' +
+    '<div class="acts"><a href="' + esc(e.url) + '" target="_blank">Mở form</a><a href="' + qr + '" target="_blank" download="QR.png">Tải ảnh QR</a></div>' +
+    '<input readonly value="' + esc(e.url) + '" onclick="this.select()" style="margin-top:10px;font-size:12px"></div>';
+  window.scrollTo(0, 0);
+}
+function loadEvents() {
+  api('listEvents', S.token).then(list => {
+    S.events = list;
+    $('#elist').innerHTML = list.length ? list.map((e, i) => '<div class="card"><div class="row"><div class="grow"><div class="name">' + esc(e.name) + '</div>' +
+      '<div class="sub">' + esc(e.date) + ' · ' + esc(e.form) + (isMgr() ? ' · ' + esc(e.by) : '') + '</div>' +
+      '<div class="sub">Đã nhập ' + e.imported + ' khách · <b style="color:' + (e.pending ? 'var(--red)' : 'inherit') + '">' + e.pending + ' đăng ký chờ nhập</b></div></div></div>' +
+      '<div class="acts"><button onclick="showQR(S.events[' + i + '])">Mã QR</button><button onclick="evPreview(' + i + ')"' + (e.pending ? '' : ' disabled') + '>Nhập khách</button></div></div>').join('')
+      : '<div class="empty">Chưa có sự kiện. Bấm "Tạo sự kiện mới" ở trên.</div>';
+  }).catch(() => {});
+}
+function evPreview(i) {
+  const e = S.events[i];
+  api('previewEvent', S.token, { code: e.code }).then(r => {
+    const c = r.count, ok = (c['mới'] || 0) + (c['đã có'] || 0) + (c['đã có - người khác'] || 0);
+    openSheet('<div class="row"><b class="grow" style="font-size:17px">' + esc(e.name) + '</b><button class="btn sm ghost" onclick="closeSheet()">Đóng</button></div>' +
+      '<div class="card" style="margin-top:10px">' + Object.keys(KIND).filter(k => c[k]).map(k => '<div class="row"><span class="badge ' + KIND[k][1] + '">' + c[k] + '</span><span>' + KIND[k][0] + '</span></div>').join('') + '</div>' +
+      (isMgr() ? '<label>Giao khách mới cho</label><select id="eo"><option value="">Tôi</option><option value="__none">– Chưa giao –</option>' + S.cfg.staff.map(s => '<option>' + esc(s) + '</option>').join('') + '</select>' : '') +
+      (ok ? '<button class="btn" id="eimp">Nhập ' + ok + ' khách vào CRM</button>' : '') +
+      r.items.map(x => '<div class="card" style="margin-top:8px"><div class="row"><div class="grow"><div class="name">' + esc(x.name || '(không tên)') + '</div><div class="sub">' + esc(x.phone) + (x.addr ? ' · ' + esc(x.addr) : '') + (x.model ? ' · ' + esc(x.model) : '') + '</div></div>' +
+        '<span class="badge ' + KIND[x.kind][1] + '">' + esc(x.kind === 'đã có - người khác' ? 'đã có' : x.kind) + '</span></div></div>').join(''));
+    if ($('#eimp')) $('#eimp').onclick = () => {
+      $('#eimp').disabled = true;
+      api('importEvent', S.token, { code: e.code, owner: $('#eo') ? $('#eo').value : '' }).then(x => { closeSheet(); toast('Đã nhập: ' + x.fresh + ' khách mới, ' + x.old + ' khách cũ'); loadEvents(); }).catch(() => { $('#eimp').disabled = false; });
+    };
+  }).catch(() => {});
+}
+
+/* ---------- Nhiệm vụ ---------- */
+function taskCard(t) {
+  return '<div class="card"><div class="row"><div class="grow"><div class="name">' + esc(t.name) + '</div><div class="sub">' + esc(t.phone) + (t.xa ? ' · ' + esc(t.xa) : '') + (t.model ? ' · ' + esc(t.model) : '') + '</div></div>' +
+    (t.done ? '<span class="badge s-chot">Xong</span>' : t.overdue ? '<span class="badge s-mat" style="color:var(--bad)">Quá hạn</span>' : '') + '</div>' +
+    '<div class="sub">Hạn: ' + esc(t.deadline || '–') + ' · Giao cho ' + esc(t.to) + ' · Người giao ' + esc(t.by) + '</div>' +
+    (t.note ? '<div style="margin-top:4px;white-space:pre-line">' + esc(t.note) + '</div>' : '') +
+    (t.done ? '' : '<div class="acts"><a class="call" href="tel:' + esc(t.phone) + '">Gọi</a><button onclick="openCust(\'' + esc(t.phone) + '\')">Hồ sơ</button><button onclick="doneTask(\'' + esc(t.id) + '\')">Xong</button></div>') + '</div>';
+}
+function vTask() {
+  app.innerHTML = header('Nhiệm vụ') + '<main>' +
+    (isMgr() ? '<div class="seg"><button id="tMine" class="on">Việc của tôi</button><button id="tAll">Tất cả</button></div>' +
+      '<details class="card"><summary><b>+ Giao nhiệm vụ mới</b></summary><div style="margin-top:10px">' +
+      '<label>Số điện thoại *</label><input id="tp" type="tel" inputmode="numeric"><label>Tên khách *</label><input id="tn">' +
+      '<label>Giao cho *</label><select id="tto"><option value="">– Chọn –</option>' + S.cfg.staff.map(s => '<option>' + esc(s) + '</option>').join('') + '</select>' +
+      '<label>Thời hạn *</label><input id="td" type="date" min="' + iso(new Date()) + '">' +
+      '<label>Model</label><input id="tm" list="models3"><datalist id="models3">' + S.cfg.models.map(m => '<option value="' + esc(m) + '">').join('') + '</datalist>' +
+      '<label>Việc cần làm</label><textarea id="tnote"></textarea><button class="btn" id="tsave">Giao nhiệm vụ</button></div></details>' : '') +
+    '<div id="tl"></div></main>';
+  const load = mine => api('listTasks', S.token, mine).then(ts => {
+    const open = ts.filter(t => !t.done), done = ts.filter(t => t.done);
+    $('#tl').innerHTML = '<h2>Đang làm <small>(' + open.length + ')</small></h2>' + (open.length ? open.map(taskCard).join('') : '<div class="empty">Không có nhiệm vụ</div>') +
+      (done.length ? '<h2>Đã xong <small>(' + done.length + ')</small></h2>' + done.slice(0, 20).map(taskCard).join('') : '');
+  }).catch(() => {});
+  if (isMgr()) {
+    $('#tMine').onclick = () => { $('#tMine').classList.add('on'); $('#tAll').classList.remove('on'); load(true); };
+    $('#tAll').onclick = () => { $('#tAll').classList.add('on'); $('#tMine').classList.remove('on'); load(false); };
+    $('#tsave').onclick = () => {
+      const p = { phone: $('#tp').value, name: $('#tn').value, to: $('#tto').value, deadline: $('#td').value, model: $('#tm').value, note: $('#tnote').value };
+      $('#tsave').disabled = true;
+      api('createTask', S.token, p).then(r => { toast(r && r.created ? 'Đã giao nhiệm vụ và tạo khách mới' : 'Đã giao nhiệm vụ'); vTask(); }).catch(() => { $('#tsave').disabled = false; });
+    };
+  }
+  load(true);
+}
+function doneTask(id) {
+  const note = prompt('Kết quả (có thể bỏ trống):', '');
+  if (note === null) return;
+  api('completeTask', S.token, id, note).then(() => { toast('Đã đánh dấu xong'); go(S.view); }).catch(() => {});
+}
+
+/* ---------- Báo cáo ---------- */
+function vReport() {
+  const m = S.rm || iso(new Date()).slice(0, 7);
+  app.innerHTML = header('Báo cáo') + '<main><input id="rm" type="month" value="' + m + '"><div id="rb"></div></main>';
+  let rt; $('#rm').onchange = () => { clearTimeout(rt); rt = setTimeout(() => { if ($('#rm').value) { S.rm = $('#rm').value; vReport(); } }, 900); };
+  api('getReport', S.token, m).then(r => {
+    const bars = arr => { const mx = Math.max(1, ...arr.map(x => x[1])); return arr.length ? arr.map(x => '<div class="bar"><span class="l">' + esc(x[0]) + '</span><span class="grow"><i style="width:' + Math.round(100 * x[1] / mx) + '%"></i></span><span class="v">' + x[1] + '</span></div>').join('') : '<div class="sub">Chưa có số liệu</div>'; };
+    $('#rb').innerHTML = '<div class="sub">Phạm vi: ' + esc(r.scope) + '</div>' +
+      '<div class="stats" style="margin-top:8px"><div class="stat"><b>' + r.newLeads + '</b><span>Khách mới</span></div><div class="stat"><b>' + r.won + '</b><span>Đã chốt</span></div><div class="stat"><b>' + r.lost + '</b><span>Mất</span></div>' +
+      '<div class="stat"><b>' + (r.winRate == null ? '–' : r.winRate + '%') + '</b><span>Tỷ lệ chốt</span></div><div class="stat"><b>' + r.contacts + '</b><span>Lần liên hệ</span></div><div class="stat"><b>' + r.customers + '</b><span>Khách được liên hệ</span></div></div>' +
+      '<h2>Khách mới theo nguồn</h2><div class="card">' + bars(r.bySource) + '</div>' +
+      '<h2>Lý do mất khách</h2><div class="card">' + bars(r.byLost) + '</div>' +
+      '<h2>Trạng thái khách hiện tại</h2><div class="card">' + bars(r.byStatus) + '</div>' +
+      '<h2>Theo nhân viên</h2><div class="card"><table><tr><th>Nhân viên</th><th>LH</th><th>Mới</th><th>Chốt</th><th>Mất</th><th>Trễ</th></tr>' +
+      r.staff.map(s => '<tr><td>' + esc(s.name) + '</td><td>' + s.contacts + '</td><td>' + s.newLeads + '</td><td>' + s.won + '</td><td>' + s.lost + '</td><td>' + s.overdue + '</td></tr>').join('') + '</table><div class="sub" style="margin-top:6px">LH: số lần liên hệ · Mới: khách mới · Trễ: khách quá hẹn</div></div>';
+  }).catch(() => {});
+}
+
+
+/* ---------- Cài app lên màn hình chính ---------- */
+let deferredPrompt = null;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; showInstall(); });
+function installHtml() {
+  if (isStandalone()) return '';
+  if (isIOS()) return '<div class="install"><b>Cài app lên iPhone:</b> bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên lên) ở thanh dưới Safari, chọn <b>Thêm vào MH chính</b>, rồi bấm <b>Thêm</b>.</div>';
+  if (deferredPrompt) return '<div class="install"><b>Cài app lên điện thoại</b> để mở nhanh như ứng dụng thật.<button class="btn" style="margin-top:8px" onclick="doInstall()">Cài đặt Yanmar CRM</button></div>';
+  return '<div class="install"><b>Cài app lên Android:</b> bấm <b>⋮</b> góc trên Chrome, chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</div>';
+}
+function showInstall() { const el = document.getElementById('installBox'); if (el) el.innerHTML = installHtml(); }
+function doInstall() { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.finally(() => { deferredPrompt = null; showInstall(); }); }
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+
+/* ---------- Khởi động ---------- */
+(function init() {
+  const tk = store('crm_tk');
+  if (!tk) return showLogin();
+  S.token = tk;
+  google.script.run.withSuccessHandler(r => { S.user = r.user; S.cfg = r.cfg; start(); })
+    .withFailureHandler(() => { store('crm_tk', null); showLogin(); }).me(tk);
+})();
+</script>
+</body>
+</html>
