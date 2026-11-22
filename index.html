@@ -61,6 +61,16 @@ nav .add b{background:var(--red);color:#fff;border-radius:50%;width:34px;height:
 .badge{font-size:12px;padding:2px 8px;border-radius:20px;white-space:nowrap;font-weight:600}
 .s-moi{background:#e7f1fb;color:var(--blue)}.s-dang{background:#fff4e0;color:var(--warn)}.s-chot{background:#e5f4e4;color:var(--ok)}.s-mat{background:#f0efec;color:#555}.s-chua{background:#efedff;color:#5b4bc4}
 .tag{font-size:12px;color:var(--bad);font-weight:600}
+.rt0{--rc:#DC1E37;--rb:#FDECEE}.rt1{--rc:#B7791F;--rb:#FFF4D6}.rt2{--rc:#2F855A;--rb:#E4F3E8}.rt3{--rc:#8a8a90;--rb:#f0f0f2}
+.card.rkc{border-left:5px solid var(--rc)}
+.rbadge{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;color:var(--rc);background:var(--rb);margin-right:6px}
+.care{font-size:12px;font-weight:700;color:var(--rc);margin-top:4px}
+.rsum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 0 10px}
+.rsum .rt{background:var(--rb);border:2px solid transparent;border-radius:12px;padding:8px 6px;text-align:center;cursor:pointer}
+.rsum .rt.on{border-color:var(--rc)}
+.rsum b{display:block;font-size:22px;color:var(--rc);line-height:1.1}
+.rsum span{display:block;font-size:12px;color:var(--ink);font-weight:600}
+.rsum em{display:block;font-size:11px;font-style:normal;color:var(--rc);margin-top:2px}
 .flag{font-size:12px;color:#5b4bc4}
 ol.lh{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px dashed var(--line)}
 ol.lh li{font-size:13px;padding:2px 0;display:flex;gap:8px}
@@ -174,6 +184,17 @@ function isMgr() { return S.user && (S.user.role === 'Admin' || S.user.role === 
 function stCls(s) { return s === 'Mới' ? 's-moi' : s === 'Đang chăm sóc' ? 's-dang' : s === 'Đã chốt' ? 's-chot' : s === 'Mất' ? 's-mat' : 's-chua'; }
 function iso(d) { const z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
 function addDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); }
+const RT = ['Cao', 'Trung bình', 'Thấp'];
+function rtIdx(r) { const i = RT.indexOf(r); return i < 0 ? 3 : i; }
+function careText(c) {
+  if (!c.careDue) return '';
+  return c.days == null ? 'Chưa có lần liên hệ nào' : c.days + ' ngày chưa liên hệ (' + (c.rating || '') + ': ' + (S.cfg.ratingDays || {})[c.rating] + ' ngày/lần)';
+}
+function modelSelect(id, val) {
+  const list = S.cfg.models || [], has = !val || list.indexOf(val) >= 0;
+  return '<select id="' + id + '"><option value="">– Chọn model –</option>' + list.map(m => '<option' + (m === val ? ' selected' : '') + '>' + esc(m) + '</option>').join('') +
+    (has ? '' : '<option value="" selected>' + esc(val) + ' (không chuẩn, chọn lại)</option>') + '</select>';
+}
 function chips(name, opts, val) { return '<div class="chips" data-name="' + name + '">' + opts.map(o => '<button type="button" class="chip' + (o === val ? ' on' : '') + '" data-val="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div>'; }
 function chipVal(root, name) { const b = root.querySelector('.chips[data-name="' + name + '"] .chip.on'); return b ? b.dataset.val : ''; }
 document.addEventListener('click', e => {
@@ -220,11 +241,13 @@ function go(v) {
 /* ---------- Thẻ khách ---------- */
 function card(c) {
   const lh = c.contacts.length ? '<ol class="lh">' + c.contacts.map(x => '<li><span>' + esc(x.d) + '</span><em><b>' + esc(x.form) + '</b>' + (x.note ? ' – ' + esc(x.note) : '') + '</em></li>').join('') + '</ol>' : '';
-  return '<div class="card tap" onclick="openCust(\'' + esc(c.phone) + '\')">' +
-    '<div class="row"><div class="grow"><div class="name">' + esc(c.name || '(chưa có tên)') + '</div>' +
+  const open = c.status !== 'Đã chốt' && c.status !== 'Mất', ri = rtIdx(c.rating);
+  return '<div class="card tap' + (open ? ' rkc rt' + ri : '') + '" onclick="openCust(\'' + esc(c.phone) + '\')">' +
+    '<div class="row"><div class="grow"><div class="name">' + (open ? '<span class="rbadge">' + esc(c.rating || 'Chưa đánh giá') + '</span>' : '') + esc(c.name || '(chưa có tên)') + '</div>' +
     '<div class="sub">' + esc(c.phone) + (c.addr || c.huyen ? ' · ' + esc([c.addr, c.huyen].filter(Boolean).join(', ')) : '') + (c.model ? ' · ' + esc(c.model) : '') + '</div></div>' +
     '<span class="badge ' + stCls(c.status) + '">' + esc(c.status) + '</span></div>' +
     (c.overdue ? '<div class="tag">Quá hẹn từ ' + esc(c.appt) + '</div>' : c.dueToday ? '<div class="tag" style="color:var(--warn)">Hẹn hôm nay</div>' : c.appt ? '<div class="sub">Hẹn: ' + esc(c.appt) + '</div>' : '') +
+    (c.careDue ? '<div class="care">' + esc(careText(c)) + '</div>' : '') +
     (c.flag ? '<div class="flag">' + esc(c.flag) + ' – cần xác nhận</div>' : '') +
     (isMgr() ? '<div class="sub">Phụ trách: ' + esc(c.owner || 'chưa giao') + '</div>' : '') + lh + '</div>';
 }
@@ -247,23 +270,26 @@ function vToday() {
     $('#m').innerHTML = h;
   }).catch(() => {});
 }
-function filterGo(q) { S.q = Object.assign({ text: '', status: '', owner: '', special: '', page: 0 }, q); go('cust'); }
+function filterGo(q) { S.q = Object.assign({ text: '', status: '', owner: '', special: '', rating: '', model: '', page: 0 }, q); go('cust'); }
 
 /* ---------- Danh sách khách ---------- */
 const STATUSES = ['Mới', 'Đang chăm sóc', 'Đã chốt', 'Mất', 'Chưa phân loại'];
 function vCust() {
   const q = S.q;
-  const sp = { overdue: 'Quá hẹn', unassigned: 'Chưa giao người', flag: 'Cần xác nhận' };
+  const sp = { overdue: 'Quá hẹn', unassigned: 'Chưa giao người', flag: 'Cần xác nhận', care: 'Lâu chưa liên hệ' };
   app.innerHTML = header('Khách hàng') + '<main>' +
-    '<button class="btn ghost" style="margin-bottom:10px" onclick="vExport()">Xuất danh sách PDF</button>' +
+    '<div id="rsum" class="rsum"></div>' +
     '<input id="qt" type="search" placeholder="Tìm tên, số điện thoại, xã" value="' + esc(q.text) + '">' +
     '<select id="qs"><option value="">Tất cả trạng thái</option>' + STATUSES.map(s => '<option' + (s === q.status ? ' selected' : '') + '>' + s + '</option>').join('') + '</select>' +
     (isMgr() ? '<select id="qo"><option value="">Tất cả nhân viên</option>' + S.cfg.staff.map(s => '<option' + (s === q.owner ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' : '') +
+    '<select id="qm"><option value="">Tất cả model</option>' + (S.cfg.models || []).map(m => '<option' + (m === q.model ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' +
+    '<button class="btn ghost" style="margin-bottom:10px" onclick="vExport()">Xuất danh sách PDF</button>' +
     (q.special ? '<div class="row" style="margin-bottom:8px"><span class="badge s-chua">' + sp[q.special] + '</span><button class="btn sm ghost" onclick="S.q.special=\'\';loadList(0)">Bỏ lọc</button></div>' : '') +
     '<div id="cnt" class="sub"></div><div id="list"></div><button id="more" class="btn ghost hide">Xem thêm</button></main>';
   let t; $('#qt').oninput = () => { clearTimeout(t); t = setTimeout(() => { S.q.text = $('#qt').value; loadList(0); }, 400); };
   $('#qs').onchange = () => { S.q.status = $('#qs').value; loadList(0); };
   if ($('#qo')) $('#qo').onchange = () => { S.q.owner = $('#qo').value; loadList(0); };
+  $('#qm').onchange = () => { S.q.model = $('#qm').value; loadList(0); };
   $('#more').onclick = () => loadList(S.q.page + 1);
   loadList(0);
 }
@@ -271,11 +297,17 @@ function loadList(page) {
   S.q.page = page;
   api('listCustomers', S.token, S.q).then(r => {
     S.list = page ? S.list.concat(r.items) : r.items; S.total = r.total;
-    $('#cnt').textContent = r.total + ' khách, liên hệ gần nhất ở trên';
+    if (r.sum) {
+      const t = [['Cao', 0], ['Trung bình', 1], ['Thấp', 2], ['none', 3]];
+      $('#rsum').innerHTML = t.map(([k, i]) => { const b = r.sum[k]; return '<div class="rt rt' + i + (S.q.rating === k ? ' on' : '') + '" onclick="pickRt(\'' + k + '\')"><b>' + b.n + '</b><span>' + (k === 'none' ? 'Chưa đánh giá' : k) + '</span>' + (b.due ? '<em>' + b.due + ' cần gọi</em>' : '<em>&nbsp;</em>') + '</div>'; }).join('');
+    }
+    $('#cnt').textContent = r.total + ' khách' + (S.q.rating ? ' (' + (S.q.rating === 'none' ? 'chưa đánh giá' : 'tiềm năng ' + S.q.rating) + ', bấm lại ô màu để bỏ lọc)' : '') + '. Cao lên đầu, trong mỗi nhóm liên hệ gần nhất ở trên';
     $('#list').innerHTML = S.list.length ? S.list.map(card).join('') : '<div class="empty">Không có khách phù hợp</div>';
     $('#more').classList.toggle('hide', S.list.length >= r.total);
   }).catch(() => {});
 }
+
+function pickRt(k) { S.q.rating = S.q.rating === k ? '' : k; loadList(0); }
 
 /* ---------- Hồ sơ khách ---------- */
 function openCust(phone) {
@@ -289,7 +321,8 @@ function vDetail() {
     '<div class="card"><div class="row"><div class="grow"><div class="name">' + esc(c.name) + '</div><div class="sub">' + esc(c.phone) + '</div></div>' +
     '<span class="badge ' + stCls(c.status) + '">' + esc(c.status) + '</span></div>' +
     '<div class="sub" style="margin-top:6px">' + esc([c.addr, c.huyen, c.tinh].filter(Boolean).join(', ')) + '</div>' +
-    '<div class="sub">Model: ' + esc(c.model || '–') + ' · Đánh giá: ' + esc(c.rating || '–') + ' · Nguồn: ' + esc(c.source || '–') + '</div>' +
+    '<div class="sub rt' + rtIdx(c.rating) + '" style="margin-top:4px"><span class="rbadge">Tiềm năng: ' + esc(c.rating || 'chưa đánh giá') + '</span>Model: ' + esc(c.model || '–') + ' · Nguồn: ' + esc(c.source || '–') + '</div>' +
+    (c.careDue ? '<div class="care rt' + rtIdx(c.rating) + '">' + esc(careText(c)) + '</div>' : '') +
     (c.appt ? '<div class="' + (c.overdue ? 'tag' : 'sub') + '">Hẹn: ' + esc(c.appt) + (c.overdue ? ' (quá hẹn)' : '') + '</div>' : '') +
     (c.lost ? '<div class="sub">Lý do mất: ' + esc(c.lost) + '</div>' : '') +
     (c.flag ? '<div class="flag">' + esc(c.flag) + ' – chọn đúng trạng thái khi cập nhật</div>' : '') +
@@ -330,24 +363,25 @@ function formContact() {
   openSheet('<div class="row"><b class="grow" style="font-size:17px">Cập nhật: ' + esc(c.name) + '</b><button class="btn sm ghost" onclick="closeSheet()">Đóng</button></div>' +
     '<label>Hình thức</label>' + chips('form', cfg.forms, 'Gọi điện') +
     '<label>Trạng thái</label>' + chips('status', ['Đang chăm sóc', 'Đã chốt', 'Mất'], st0) +
+    '<div id="rtBox" class="' + (st0 === 'Đang chăm sóc' ? '' : 'hide') + '"><label>Mức tiềm năng *</label>' + chips('rating', RT, c.rating) +
+    '<div class="sub" style="margin:-4px 0 8px">Cao: sắp mua, gọi 3 ngày/lần · Trung bình: 7 ngày/lần · Thấp: 30 ngày/lần</div></div>' +
     '<div id="lostBox" class="' + (st0 === 'Mất' ? '' : 'hide') + '"><label>Lý do mất</label>' + chips('lost', cfg.lost, '') + '</div>' +
     '<label>Ghi chú</label><textarea id="fn" placeholder="Khách nói gì, cần gì..."></textarea>' +
     '<div id="apptBox" class="' + (st0 === 'Đang chăm sóc' ? '' : 'hide') + '"><label>Hẹn gọi lại</label>' +
     chips('quick', ['Ngày mai', '3 ngày', '1 tuần', '2 tuần', '1 tháng'], '') +
     '<input id="fa" type="date" min="' + iso(new Date()) + '" value="' + esc(c.overdue ? '' : c.apptIso) + '"></div>' +
-    '<details><summary class="sub" style="margin-bottom:8px">Model, đánh giá</summary>' +
-    '<label>Model quan tâm</label><input id="fm" list="models" value="' + esc(c.model) + '"><datalist id="models">' + cfg.models.map(m => '<option value="' + esc(m) + '">').join('') + '</datalist>' +
-    '<label>Đánh giá</label>' + chips('rating', ['Thấp', 'Trung bình', 'Cao'], c.rating) + '</details>' +
+    '<label>Model quan tâm</label>' + modelSelect('fm', c.model) +
     '<button class="btn" id="fsave">Lưu</button>');
   const box = $('#sheetBox');
   box.addEventListener('pick', e => {
     const { name, val } = e.detail;
-    if (name === 'status') { $('#lostBox').classList.toggle('hide', val !== 'Mất'); $('#apptBox').classList.toggle('hide', val !== 'Đang chăm sóc'); }
+    if (name === 'status') { $('#lostBox').classList.toggle('hide', val !== 'Mất'); $('#apptBox').classList.toggle('hide', val !== 'Đang chăm sóc'); $('#rtBox').classList.toggle('hide', val !== 'Đang chăm sóc'); }
     if (name === 'quick') $('#fa').value = addDays({ 'Ngày mai': 1, '3 ngày': 3, '1 tuần': 7, '2 tuần': 14, '1 tháng': 30 }[val]);
   });
   $('#fsave').onclick = () => {
     const p = { phone: c.phone, form: chipVal(box, 'form'), status: chipVal(box, 'status'), lost: chipVal(box, 'lost'), note: $('#fn').value, appt: $('#fa').value, model: $('#fm').value, rating: chipVal(box, 'rating') };
     if (p.status === 'Mất' && !p.lost) return toast('Chọn lý do mất khách', true);
+    if (p.status === 'Đang chăm sóc' && !p.rating) return toast('Chọn mức tiềm năng: Cao, Trung bình hoặc Thấp', true);
     if (p.status === 'Đang chăm sóc' && !p.appt && !confirm('Chưa đặt ngày hẹn gọi lại. Vẫn lưu?')) return;
     $('#fsave').disabled = true;
     api('saveContact', S.token, p).then(() => { closeSheet(); toast('Đã lưu'); openCust(c.phone); }).catch(() => { $('#fsave').disabled = false; });
@@ -365,7 +399,9 @@ function vAdd() {
     '<label>Thôn, xã</label><input id="na">' +
     '<label>Huyện (cũ)</label><input id="nh">' +
     '<label>Tỉnh</label><select id="nt">' + cfg.provinces.map(p => '<option>' + esc(p) + '</option>').join('') + '</select>' +
-    '<label>Model quan tâm</label><input id="nm" list="models2"><datalist id="models2">' + cfg.models.map(m => '<option value="' + esc(m) + '">').join('') + '</datalist>' +
+    '<label>Mức tiềm năng *</label>' + chips('rating', RT, '') +
+    '<div class="sub" style="margin:-4px 0 8px">Cao: sắp mua · Trung bình: đang cân nhắc · Thấp: mới hỏi thăm</div>' +
+    '<label>Model quan tâm</label>' + modelSelect('nm', '') +
     '<label>Ghi chú</label><textarea id="nnote"></textarea>' +
     '<label>Hẹn gọi lại</label>' + chips('quick', ['Ngày mai', '3 ngày', '1 tuần'], '') + '<input id="nd" type="date" min="' + iso(new Date()) + '">' +
     (isMgr() ? '<label>Giao cho</label><select id="no"><option value="">Tôi</option><option value="__none">– Chưa giao –</option>' + cfg.staff.map(s => '<option>' + esc(s) + '</option>').join('') + '</select>' : '') +
@@ -380,6 +416,8 @@ function vAdd() {
   $('#nsave').onclick = () => {
     const p = { phone: $('#np').value, name: $('#nn').value, source: chipVal(box, 'source'), form: chipVal(box, 'form'), addr: $('#na').value, huyen: $('#nh').value, tinh: $('#nt').value, model: $('#nm').value, note: $('#nnote').value, appt: $('#nd').value, owner: $('#no') ? $('#no').value : '' };
     if (!p.source) return toast('Chọn nguồn khách', true);
+    p.rating = chipVal(box, 'rating');
+    if (!p.rating) return toast('Chọn mức tiềm năng', true);
     $('#nsave').disabled = true;
     api('createLead', S.token, p).then(r => {
       if (r.exists) { toast('Số này đã có trong danh sách, mở hồ sơ cũ để cập nhật'); }
@@ -457,7 +495,7 @@ function vTask() {
       '<label>Số điện thoại *</label><input id="tp" type="tel" inputmode="numeric"><label>Tên khách *</label><input id="tn">' +
       '<label>Giao cho *</label><select id="tto"><option value="">– Chọn –</option>' + S.cfg.staff.map(s => '<option>' + esc(s) + '</option>').join('') + '</select>' +
       '<label>Thời hạn *</label><input id="td" type="date" min="' + iso(new Date()) + '">' +
-      '<label>Model</label><input id="tm" list="models3"><datalist id="models3">' + S.cfg.models.map(m => '<option value="' + esc(m) + '">').join('') + '</datalist>' +
+      '<label>Model</label>' + modelSelect('tm', '') +
       '<label>Việc cần làm</label><textarea id="tnote"></textarea><button class="btn" id="tsave">Giao nhiệm vụ</button></div></details>' : '') +
     '<div id="tl"></div></main>';
   const load = mine => api('listTasks', S.token, mine).then(ts => {
@@ -484,10 +522,12 @@ function doneTask(id) {
 
 /* ---------- Xuất danh sách PDF ---------- */
 function vExport() {
-  const E = S.ex = S.ex || { kind: 'care', tinh: '', huyen: '', xa: '', owner: '' };
+  const E = S.ex = S.ex || { kind: 'care', tinh: '', huyen: '', xa: '', owner: '', rating: '', model: '' };
   app.innerHTML = header('Xuất danh sách PDF', 'vCust()') + '<main><div class="card">' +
     '<div class="sub" style="margin-bottom:8px">Lọc khách ' + (isMgr() ? 'của đại lý' : 'của anh/chị') + ' theo địa bàn để in danh sách đi chăm sóc, mời dự sự kiện, trình diễn máy.</div>' +
     '<label>Loại danh sách</label><select id="exK"></select>' +
+    '<label>Mức tiềm năng</label><select id="exR"><option value="">Tất cả mức</option>' + RT.concat(['none']).map(r => '<option value="' + r + '"' + (r === E.rating ? ' selected' : '') + '>' + (r === 'none' ? 'Chưa đánh giá' : r) + '</option>').join('') + '</select>' +
+    '<label>Model</label><select id="exM"><option value="">Tất cả model</option>' + (S.cfg.models || []).map(m => '<option' + (m === E.model ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' +
     (isMgr() ? '<label>Nhân viên phụ trách</label><select id="exO"><option value="">Toàn đại lý</option>' + S.cfg.staff.map(x => '<option' + (x === E.owner ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select>' : '') +
     '<label>Tỉnh</label><select id="exT"></select><label>Huyện</label><select id="exH"></select><label>Xã, thôn</label><select id="exX"></select>' +
     '<div id="exN" class="sub" style="margin:4px 0 10px">&nbsp;</div>' +
@@ -510,6 +550,8 @@ function vExport() {
     fill();
   }).catch(() => {});
   $('#exK').onchange = e => { E.kind = e.target.value; count(); };
+  $('#exR').onchange = e => { E.rating = e.target.value; count(); };
+  $('#exM').onchange = e => { E.model = e.target.value; count(); };
   $('#exT').onchange = e => { E.tinh = e.target.value; E.huyen = ''; E.xa = ''; fill(); };
   $('#exH').onchange = e => { E.huyen = e.target.value; E.xa = ''; fill(); };
   $('#exX').onchange = e => { E.xa = e.target.value; count(); };
