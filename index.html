@@ -180,6 +180,10 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ 
 function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', err ? 4500 : 2500); }
 let loading = 0;
 function busy(on) { loading += on ? 1 : -1; $('#load').classList.toggle('on', loading > 0); }
+/* Gọi máy chủ không báo lỗi (dùng cho phần phụ, ví dụ biểu đồ dự kiến) */
+function apiQuiet(fn, ...args) {
+  return new Promise((res, rej) => { google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](...args); });
+}
 function api(fn, ...args) {
   busy(true);
   return new Promise((res, rej) => {
@@ -264,7 +268,7 @@ function card(c) {
 /* ---------- Hôm nay ---------- */
 function vToday() {
   app.innerHTML = header('Việc hôm nay') + '<main><div id="fc" class="fc"></div><div id="m"></div></main>';
-  api('getForecast', S.token).then(fcHtml).catch(() => {});
+  apiQuiet('getForecast', S.token).then(fcHtml).catch(() => {});
   api('getToday', S.token).then(r => {
     let h = '<div class="sub">Xin chào ' + esc(r.user.name) + ' (' + esc(r.user.role) + ')</div><div id="installBox">' + installHtml() + '</div>';
     if (r.team) h += '<h2>Toàn đại lý</h2><div class="stats">' +
