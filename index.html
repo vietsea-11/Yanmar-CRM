@@ -65,6 +65,14 @@ nav .add b{background:var(--red);color:#fff;border-radius:50%;width:34px;height:
 .card.rkc{border-left:5px solid var(--rc)}
 .rbadge{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;color:var(--rc);background:var(--rb);margin-right:6px}
 .care{font-size:12px;font-weight:700;color:var(--rc);margin-top:4px}
+.fc .bar{position:relative;height:12px;background:#eceaf0;border-radius:6px;overflow:hidden;margin:4px 0 2px}
+.fc .bar i{position:absolute;top:0;bottom:0}
+.fc .row2{display:flex;justify-content:space-between;font-size:13px}
+.fc .pot{display:flex;height:20px;border-radius:5px;overflow:hidden;flex:1;cursor:pointer}
+.fc .pot span{color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:20px;min-width:0;overflow:hidden}
+.lg{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--sub);margin:4px 0 10px}
+.lg b{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:3px}
+.tg td{padding:4px}.tg input{width:64px;margin:0;padding:8px;text-align:center}
 .rsum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 0 10px}
 .rsum .rt{background:var(--rb);border:2px solid transparent;border-radius:12px;padding:8px 6px;text-align:center;cursor:pointer}
 .rsum .rt.on{border-color:var(--rc)}
@@ -255,7 +263,8 @@ function card(c) {
 
 /* ---------- Hôm nay ---------- */
 function vToday() {
-  app.innerHTML = header('Việc hôm nay') + '<main id="m"></main>';
+  app.innerHTML = header('Việc hôm nay') + '<main><div id="fc" class="fc"></div><div id="m"></div></main>';
+  api('getForecast', S.token).then(fcHtml).catch(() => {});
   api('getToday', S.token).then(r => {
     let h = '<div class="sub">Xin chào ' + esc(r.user.name) + ' (' + esc(r.user.role) + ')</div><div id="installBox">' + installHtml() + '</div>';
     if (r.team) h += '<h2>Toàn đại lý</h2><div class="stats">' +
@@ -271,7 +280,66 @@ function vToday() {
     $('#m').innerHTML = h;
   }).catch(() => {});
 }
-function filterGo(q) { S.q = Object.assign({ text: '', status: '', owner: '', special: '', rating: '', model: '', page: 0 }, q); go('cust'); }
+/* ---------- Dự kiến bán hàng tháng ---------- */
+function fcHtml(f) {
+  const mm = f.month.slice(5) + '/' + f.month.slice(0, 4);
+  const cats = f.cats.concat(f.rows['Khác'] && (f.rows['Khác'].won || Object.values(f.rows['Khác'].pot).some(x => x)) ? ['Khác'] : []);
+  let h = '';
+  if (f.remindNext) h += '<div class="card" style="border-color:var(--red)"><b>Chưa nhập chỉ tiêu tháng ' + f.next.slice(5) + '</b><div class="sub">Nhập trước ngày 1 để app tính tiến độ cho đại lý và từng nhân viên.</div><button class="btn sm" style="margin-top:8px" onclick="vTargets(\'' + f.next + '\')">Nhập chỉ tiêu</button></div>';
+  h += '<h2>Bán hàng tháng ' + mm + ' <small>(' + (isMgr() ? 'toàn đại lý' : 'của tôi') + (f.daysLeft ? ', còn ' + f.daysLeft + ' ngày' : '') + ')</small></h2><div class="card">';
+  h += cats.filter(c => c !== 'Khác').map(c => {
+    const b = f.rows[c], t = b.target, done = b.won, fc = b.forecast;
+    const W = v => t ? Math.min(100, v / t * 100) : 0;
+    const pct = t ? Math.round((done + fc) / t * 100) : null, pd = t ? Math.round(done / t * 100) : null;
+    return '<div style="margin-bottom:10px"><div class="row2"><b>' + c + '</b><span class="sub">' +
+      (t ? 'Chốt ' + done + '/' + t + ' (' + pd + '%) · dự kiến <b style="color:' + (pct >= 100 ? 'var(--ok)' : pct >= 70 ? 'var(--warn)' : 'var(--bad)') + '">' + pct + '%</b>' : 'Chốt ' + done + ' · chưa có chỉ tiêu') + '</span></div>' +
+      '<div class="bar"><i style="left:0;width:' + W(done) + '%;background:#2F855A"></i><i style="left:' + W(done) + '%;width:' + Math.max(0, Math.min(W(fc), 100 - W(done))) + '%;background:#9AD0A8"></i></div>' +
+      '<div class="sub" style="font-size:12px">Dự kiến chốt thêm ' + String(fc).replace('.', ',') + ' chiếc</div></div>';
+  }).join('');
+  h += '<div class="lg"><span><b style="background:#2F855A"></b>Đã chốt</span><span><b style="background:#9AD0A8"></b>Dự kiến thêm</span><span>Tỷ lệ giả định: Cao ' + f.rate['Cao'] * 100 + '%, TB ' + f.rate['Trung bình'] * 100 + '%, Thấp ' + f.rate['Thấp'] * 100 + '%</span></div>';
+  const mx = Math.max(1, ...cats.map(c => { const p = f.rows[c].pot; return p['Cao'] + p['Trung bình'] + p['Thấp'] + p.none; }));
+  h += '<b style="font-size:14px">Khách tiềm năng đang chăm sóc</b>' + cats.map(c => {
+    const p = f.rows[c].pot, tot = p['Cao'] + p['Trung bình'] + p['Thấp'] + p.none;
+    const seg = (v, col, rt) => v ? '<span style="width:' + (v / mx * 100) + '%;background:' + col + '" onclick="event.stopPropagation();filterGo({cat:\'' + c + '\',rating:\'' + rt + '\'})">' + v + '</span>' : '';
+    return '<div class="row" style="margin-top:6px;gap:8px"><span style="width:66px;font-size:13px">' + c + '</span><div class="pot" onclick="filterGo({cat:\'' + c + '\'})">' +
+      seg(p['Cao'], '#DC1E37', 'Cao') + seg(p['Trung bình'], '#D69E2E', 'Trung bình') + seg(p['Thấp'], '#2F855A', 'Thấp') + seg(p.none, '#a0a0a8', 'none') + (tot ? '' : '<span style="color:var(--sub)">0</span>') + '</div></div>';
+  }).join('');
+  h += '<div class="lg"><span><b style="background:#DC1E37"></b>Cao</span><span><b style="background:#D69E2E"></b>Trung bình</span><span><b style="background:#2F855A"></b>Thấp</span><span><b style="background:#a0a0a8"></b>Chưa đánh giá</span></div>';
+  if (f.noModel) h += '<div class="sub" style="font-size:12px">' + f.noModel + ' khách chưa có model, chưa tính vào biểu đồ.</div>';
+  if (isMgr()) h += '<div class="row" style="gap:8px;margin-top:8px"><button class="btn sm ghost" onclick="vTargets(\'' + f.month + '\')">Chỉ tiêu tháng này</button><button class="btn sm ghost" onclick="vTargets(\'' + f.next + '\')">Chỉ tiêu tháng ' + f.next.slice(5) + '</button></div>';
+  h += '</div>';
+  $('#fc').innerHTML = h;
+}
+function vTargets(month) {
+  api('getTargets', S.token, month).then(r => {
+    $('#nav').classList.add('hide');
+    const v = r.values, val = (sc, c) => ((v[sc] || {})[c] || '');
+    app.innerHTML = header('Chỉ tiêu tháng ' + month.slice(5) + '/' + month.slice(0, 4), "$('#nav').classList.remove('hide');go('today')") + '<main><div class="card">' +
+      '<div class="sub" style="margin-bottom:8px">Đơn vị: chiếc. Dòng đầu là chỉ tiêu cả đại lý, các dòng dưới cho từng nhân viên. Để trống nếu không giao.</div>' +
+      '<table class="tg" style="width:100%"><tr><th></th>' + r.cats.map(c => '<th style="font-size:12px">' + c + '</th>').join('') + '</tr>' +
+      r.scopes.map((sc, i) => '<tr' + (i ? '' : ' style="background:#fff4f5"') + '><td style="font-size:13px;' + (i ? '' : 'font-weight:700') + '">' + esc(sc) + '</td>' +
+        r.cats.map(c => '<td><input type="number" inputmode="numeric" min="0" data-sc="' + esc(sc) + '" data-c="' + c + '" value="' + val(sc, c) + '"></td>').join('') + '</tr>').join('') +
+      '<tr><td class="sub" style="font-size:12px">Tổng nhân viên</td>' + r.cats.map(c => '<td class="sub" style="text-align:center" id="sum_' + r.cats.indexOf(c) + '"></td>').join('') + '</tr></table>' +
+      '<div id="tgw" class="sub" style="margin:6px 0"></div><button class="btn" id="tgs">Lưu chỉ tiêu</button></div></main>';
+    const calc = () => {
+      const warn = [];
+      r.cats.forEach((c, k) => {
+        let sum = 0; document.querySelectorAll('input[data-c="' + c + '"]').forEach(x => { if (x.dataset.sc !== r.scopes[0]) sum += +x.value || 0; });
+        $('#sum_' + k).textContent = sum;
+        const all = +document.querySelector('input[data-sc="' + r.scopes[0] + '"][data-c="' + c + '"]').value || 0;
+        if (sum && all && sum !== all) warn.push(c + ': nhân viên ' + sum + ', đại lý ' + all);
+      });
+      $('#tgw').textContent = warn.length ? 'Tổng nhân viên khác chỉ tiêu đại lý (' + warn.join('; ') + '). Vẫn lưu được.' : '';
+    };
+    document.querySelectorAll('.tg input').forEach(x => { x.oninput = calc; }); calc();
+    $('#tgs').onclick = () => {
+      const rows = []; document.querySelectorAll('.tg input').forEach(x => rows.push({ scope: x.dataset.sc, cat: x.dataset.c, n: +x.value || 0 }));
+      $('#tgs').disabled = true;
+      api('saveTargets', S.token, month, rows).then(() => { toast('Đã lưu chỉ tiêu'); $('#nav').classList.remove('hide'); go('today'); }).catch(() => { $('#tgs').disabled = false; });
+    };
+  }).catch(() => {});
+}
+function filterGo(q) { S.q = Object.assign({ text: '', status: '', owner: '', special: '', rating: '', model: '', cat: '', page: 0 }, q); go('cust'); }
 
 /* ---------- Danh sách khách ---------- */
 const STATUSES = ['Mới', 'Đang chăm sóc', 'Đã chốt', 'Mất', 'Chưa phân loại'];
@@ -286,6 +354,7 @@ function vCust() {
     '<select id="qm"><option value="">Tất cả model</option>' + (S.cfg.models || []).map(m => '<option' + (m === q.model ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' +
     '<button class="btn ghost" style="margin-bottom:10px" onclick="vExport()">Xuất danh sách PDF</button>' +
     (q.special ? '<div class="row" style="margin-bottom:8px"><span class="badge s-chua">' + sp[q.special] + '</span><button class="btn sm ghost" onclick="S.q.special=\'\';loadList(0)">Bỏ lọc</button></div>' : '') +
+    (q.cat ? '<div class="row" style="margin-bottom:8px"><span class="badge s-chua">' + esc(q.cat) + '</span><button class="btn sm ghost" onclick="S.q.cat=\'\';vCust()">Bỏ lọc</button></div>' : '') +
     '<div id="cnt" class="sub"></div><div id="list"></div><button id="more" class="btn ghost hide">Xem thêm</button></main>';
   let t; $('#qt').oninput = () => { clearTimeout(t); t = setTimeout(() => { S.q.text = $('#qt').value; loadList(0); }, 400); };
   $('#qs').onchange = () => { S.q.status = $('#qs').value; loadList(0); };
@@ -383,6 +452,7 @@ function formContact() {
     const p = { phone: c.phone, form: chipVal(box, 'form'), status: chipVal(box, 'status'), lost: chipVal(box, 'lost'), note: $('#fn').value, appt: $('#fa').value, model: $('#fm').value, rating: chipVal(box, 'rating') };
     if (p.status === 'Mất' && !p.lost) return toast('Chọn lý do mất khách', true);
     if (p.status === 'Đang chăm sóc' && !p.rating) return toast('Chọn mức tiềm năng: Cao, Trung bình hoặc Thấp', true);
+    if (p.status === 'Đã chốt' && (!p.model || p.model === 'Chưa xác định')) return toast('Khách đã chốt: chọn model khách mua', true);
     if (p.status === 'Đang chăm sóc' && !p.appt && !confirm('Chưa đặt ngày hẹn gọi lại. Vẫn lưu?')) return;
     $('#fsave').disabled = true;
     api('saveContact', S.token, p).then(() => { closeSheet(); toast('Đã lưu'); openCust(c.phone); }).catch(() => { $('#fsave').disabled = false; });
