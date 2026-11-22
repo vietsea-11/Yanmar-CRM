@@ -255,6 +255,7 @@ function vCust() {
   const q = S.q;
   const sp = { overdue: 'Quá hẹn', unassigned: 'Chưa giao người', flag: 'Cần xác nhận' };
   app.innerHTML = header('Khách hàng') + '<main>' +
+    '<button class="btn ghost" style="margin-bottom:10px" onclick="vExport()">Xuất danh sách PDF</button>' +
     '<input id="qt" type="search" placeholder="Tìm tên, số điện thoại, xã" value="' + esc(q.text) + '">' +
     '<select id="qs"><option value="">Tất cả trạng thái</option>' + STATUSES.map(s => '<option' + (s === q.status ? ' selected' : '') + '>' + s + '</option>').join('') + '</select>' +
     (isMgr() ? '<select id="qo"><option value="">Tất cả nhân viên</option>' + S.cfg.staff.map(s => '<option' + (s === q.owner ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' : '') +
@@ -479,6 +480,49 @@ function doneTask(id) {
   const note = prompt('Kết quả (có thể bỏ trống):', '');
   if (note === null) return;
   api('completeTask', S.token, id, note).then(() => { toast('Đã đánh dấu xong'); go(S.view); }).catch(() => {});
+}
+
+/* ---------- Xuất danh sách PDF ---------- */
+function vExport() {
+  const E = S.ex = S.ex || { kind: 'care', tinh: '', huyen: '', xa: '', owner: '' };
+  app.innerHTML = header('Xuất danh sách PDF', 'vCust()') + '<main><div class="card">' +
+    '<div class="sub" style="margin-bottom:8px">Lọc khách ' + (isMgr() ? 'của đại lý' : 'của anh/chị') + ' theo địa bàn để in danh sách đi chăm sóc, mời dự sự kiện, trình diễn máy.</div>' +
+    '<label>Loại danh sách</label><select id="exK"></select>' +
+    (isMgr() ? '<label>Nhân viên phụ trách</label><select id="exO"><option value="">Toàn đại lý</option>' + S.cfg.staff.map(x => '<option' + (x === E.owner ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select>' : '') +
+    '<label>Tỉnh</label><select id="exT"></select><label>Huyện</label><select id="exH"></select><label>Xã, thôn</label><select id="exX"></select>' +
+    '<div id="exN" class="sub" style="margin:4px 0 10px">&nbsp;</div>' +
+    '<button class="btn" id="exGo">Tạo file PDF</button><div id="exR" style="margin-top:10px"></div></div></main>';
+  const opts = (sel, arr, cur, all) => { $(sel).innerHTML = '<option value="">' + all + '</option>' + arr.map(x => '<option' + (x === cur ? ' selected' : '') + '>' + esc(x) + '</option>').join(''); };
+  let tree = {}, ct;
+  const count = () => { $('#exN').textContent = 'Đang đếm…'; clearTimeout(ct); ct = setTimeout(() => api('exportCount', S.token, E).then(n => { $('#exN').innerHTML = 'Có <b>' + n + '</b> khách khớp điều kiện'; }).catch(() => {}), 300); };
+  const fill = () => {
+    const ts = Object.keys(tree); if (E.tinh && ts.indexOf(E.tinh) < 0) E.tinh = '';
+    opts('#exT', ts, E.tinh, 'Tất cả tỉnh');
+    const hs = E.tinh ? Object.keys(tree[E.tinh]) : []; if (E.huyen && hs.indexOf(E.huyen) < 0) E.huyen = '';
+    opts('#exH', hs, E.huyen, E.tinh ? 'Tất cả huyện' : '– Chọn tỉnh trước –');
+    const xs = E.huyen ? tree[E.tinh][E.huyen] : []; if (E.xa && xs.indexOf(E.xa) < 0) E.xa = '';
+    opts('#exX', xs, E.xa, E.huyen ? 'Tất cả xã' : '– Chọn huyện trước –');
+    count();
+  };
+  const load = () => api('exportOptions', S.token, { owner: E.owner }).then(r => {
+    tree = r.tree;
+    $('#exK').innerHTML = Object.keys(r.kinds).map(k => '<option value="' + k + '"' + (k === E.kind ? ' selected' : '') + '>' + esc(r.kinds[k]) + '</option>').join('');
+    fill();
+  }).catch(() => {});
+  $('#exK').onchange = e => { E.kind = e.target.value; count(); };
+  $('#exT').onchange = e => { E.tinh = e.target.value; E.huyen = ''; E.xa = ''; fill(); };
+  $('#exH').onchange = e => { E.huyen = e.target.value; E.xa = ''; fill(); };
+  $('#exX').onchange = e => { E.xa = e.target.value; count(); };
+  if ($('#exO')) $('#exO').onchange = e => { E.owner = e.target.value; load(); };
+  $('#exGo').onclick = () => api('exportPdf', S.token, E).then(r => {
+    const bin = atob(r.b64), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([u8], { type: 'application/pdf' }));
+    $('#exR').innerHTML = '<div class="sub" style="margin-bottom:6px">Đã tạo file ' + r.n + ' khách.</div>' +
+      '<a class="btn ghost" style="display:block;text-align:center;text-decoration:none" href="' + url + '" download="' + esc(r.name) + '" target="_blank">Mở / tải file PDF</a>';
+    try { $('#exR a').click(); } catch (e) {}
+  }).catch(() => {});
+  load();
 }
 
 /* ---------- Báo cáo ---------- */
