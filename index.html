@@ -191,10 +191,11 @@ function careText(c) {
   return c.days == null ? 'Chưa có lần liên hệ nào' : c.days + ' ngày chưa liên hệ (' + (c.rating || '') + ': ' + (S.cfg.ratingDays || {})[c.rating] + ' ngày/lần)';
 }
 function modelSelect(id, val) {
-  const list = S.cfg.models || [], has = !val || list.indexOf(val) >= 0;
+  const list = S.cfg.models || [], has = !val || list.indexOf(val) >= 0, nw = (S.cfg.succ || {})[val];
   return '<select id="' + id + '"><option value="">– Chọn model –</option>' + list.map(m => '<option' + (m === val ? ' selected' : '') + '>' + esc(m) + '</option>').join('') +
-    (has ? '' : '<option value="" selected>' + esc(val) + ' (không chuẩn, chọn lại)</option>') + '</select>';
+    (has ? '' : nw ? '<option value="' + esc(val) + '" selected>' + esc(val) + ' (ngừng bán, nay là ' + esc(nw) + ')</option>' : '<option value="" selected>' + esc(val) + ' (không chuẩn, chọn lại)</option>') + '</select>';
 }
+function modelTxt(c) { return c.model ? c.model + (c.modelNow && c.modelNow !== c.model ? ' → ' + c.modelNow : '') : ''; }
 function chips(name, opts, val) { return '<div class="chips" data-name="' + name + '">' + opts.map(o => '<button type="button" class="chip' + (o === val ? ' on' : '') + '" data-val="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div>'; }
 function chipVal(root, name) { const b = root.querySelector('.chips[data-name="' + name + '"] .chip.on'); return b ? b.dataset.val : ''; }
 document.addEventListener('click', e => {
@@ -244,7 +245,7 @@ function card(c) {
   const open = c.status !== 'Đã chốt' && c.status !== 'Mất', ri = rtIdx(c.rating);
   return '<div class="card tap' + (open ? ' rkc rt' + ri : '') + '" onclick="openCust(\'' + esc(c.phone) + '\')">' +
     '<div class="row"><div class="grow"><div class="name">' + (open ? '<span class="rbadge">' + esc(c.rating || 'Chưa đánh giá') + '</span>' : '') + esc(c.name || '(chưa có tên)') + '</div>' +
-    '<div class="sub">' + esc(c.phone) + (c.addr || c.huyen ? ' · ' + esc([c.addr, c.huyen].filter(Boolean).join(', ')) : '') + (c.model ? ' · ' + esc(c.model) : '') + '</div></div>' +
+    '<div class="sub">' + esc(c.phone) + (c.addr || c.huyen ? ' · ' + esc([c.addr, c.huyen].filter(Boolean).join(', ')) : '') + (c.model ? ' · ' + esc(modelTxt(c)) : '') + '</div></div>' +
     '<span class="badge ' + stCls(c.status) + '">' + esc(c.status) + '</span></div>' +
     (c.overdue ? '<div class="tag">Quá hẹn từ ' + esc(c.appt) + '</div>' : c.dueToday ? '<div class="tag" style="color:var(--warn)">Hẹn hôm nay</div>' : c.appt ? '<div class="sub">Hẹn: ' + esc(c.appt) + '</div>' : '') +
     (c.careDue ? '<div class="care">' + esc(careText(c)) + '</div>' : '') +
@@ -321,7 +322,7 @@ function vDetail() {
     '<div class="card"><div class="row"><div class="grow"><div class="name">' + esc(c.name) + '</div><div class="sub">' + esc(c.phone) + '</div></div>' +
     '<span class="badge ' + stCls(c.status) + '">' + esc(c.status) + '</span></div>' +
     '<div class="sub" style="margin-top:6px">' + esc([c.addr, c.huyen, c.tinh].filter(Boolean).join(', ')) + '</div>' +
-    '<div class="sub rt' + rtIdx(c.rating) + '" style="margin-top:4px"><span class="rbadge">Tiềm năng: ' + esc(c.rating || 'chưa đánh giá') + '</span>Model: ' + esc(c.model || '–') + ' · Nguồn: ' + esc(c.source || '–') + '</div>' +
+    '<div class="sub rt' + rtIdx(c.rating) + '" style="margin-top:4px"><span class="rbadge">Tiềm năng: ' + esc(c.rating || 'chưa đánh giá') + '</span>Model: ' + esc(modelTxt(c) || '–') + ' · Nguồn: ' + esc(c.source || '–') + '</div>' +
     (c.careDue ? '<div class="care rt' + rtIdx(c.rating) + '">' + esc(careText(c)) + '</div>' : '') +
     (c.appt ? '<div class="' + (c.overdue ? 'tag' : 'sub') + '">Hẹn: ' + esc(c.appt) + (c.overdue ? ' (quá hẹn)' : '') + '</div>' : '') +
     (c.lost ? '<div class="sub">Lý do mất: ' + esc(c.lost) + '</div>' : '') +
