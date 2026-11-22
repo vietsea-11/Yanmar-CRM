@@ -135,6 +135,9 @@ body:has(.login){background:#fff}
 .login input{margin:0 0 6px;padding:13px 14px;border-color:var(--line);background:#fafafa}
 .login input:focus{outline:none;border-color:var(--ink);background:#fff}
 .login .install{border:1px solid var(--line);background:#fafafa;font-size:13px;margin:16px 0 0}
+.av{flex:none;border-radius:50%;object-fit:cover;background:#ecebef;color:#6b6b70;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.photoBtn{display:inline-block;font-size:13px;color:var(--blue);margin-top:6px;cursor:pointer}
+.pv{max-width:100%;border-radius:12px;display:block;margin:8px auto}
 .hello{font-size:16px;font-weight:700;color:#000;margin:2px 0 6px}
 .login .credit{margin:0;font-size:11px;line-height:1.7}
 header .logo{height:15px;width:auto;flex:none;color:#fff}
@@ -208,6 +211,59 @@ function modelSelect(id, val) {
   return '<select id="' + id + '"><option value="">– Chọn model –</option>' + list.map(m => '<option' + (m === val ? ' selected' : '') + '>' + esc(m) + '</option>').join('') +
     (has ? '' : nw ? '<option value="' + esc(val) + '" selected>' + esc(val) + ' (ngừng bán, nay là ' + esc(nw) + ')</option>' : '<option value="" selected>' + esc(val) + ' (không chuẩn, chọn lại)</option>') + '</select>';
 }
+/* ---------- Ảnh khách ---------- */
+function initials(n) { const w = String(n || '').trim().split(/\s+/).filter(Boolean); return esc(((w[w.length - 1] || '?')[0] || '?').toUpperCase()); }
+function avatar(c, px) {
+  const st = 'width:' + px + 'px;height:' + px + 'px;font-size:' + Math.round(px * 0.42) + 'px';
+  return c.thumb ? '<img class="av" style="' + st + '" src="' + esc(c.thumb) + '" alt="">' : '<span class="av" style="' + st + '">' + initials(c.name) + '</span>';
+}
+/** Thu nhỏ ảnh trên điện thoại: ảnh lưu (cạnh dài 1280px) và ảnh nhỏ (96px) */
+function shrink(file, max, q) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight; const k = Math.min(1, max / Math.max(w, h)); w = Math.round(w * k); h = Math.round(h * k);
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg', q).split(',')[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Không đọc được ảnh')); };
+    img.src = url;
+  });
+}
+function thumbSquare(file) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(img.naturalWidth, img.naturalHeight), cv = document.createElement('canvas'); cv.width = cv.height = 96;
+      cv.getContext('2d').drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, 96, 96);
+      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg', 0.7).split(',')[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Không đọc được ảnh')); };
+    img.src = url;
+  });
+}
+function uploadPhoto(phone, file) {
+  if (!file) return Promise.resolve(null);
+  toast('Đang tải ảnh lên…');
+  return Promise.all([shrink(file, 1280, 0.82), thumbSquare(file)]).then(([full, th]) => api('savePhoto', S.token, phone, full, th))
+    .then(r => { toast('Đã lưu ảnh: ' + r.name); return r; });
+}
+function photoInput(id) {
+  return '<label>Ảnh khách (không bắt buộc)</label><input id="' + id + '" type="file" accept="image/*" style="padding:8px">' +
+    '<div class="sub" style="margin:-4px 0 8px;font-size:12px">Chụp chân dung hoặc ảnh khách bên máy để dễ nhận ra. Nên hỏi khách trước khi chụp.</div>';
+}
+function pickPhoto() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = () => { const f = inp.files[0]; if (f) uploadPhoto(S.cur.phone, f).then(() => openCust(S.cur.phone)).catch(() => {}); };
+  inp.click();
+}
+function viewPhoto() {
+  api('getPhoto', S.token, S.cur.phone).then(u => {
+    if (!u) return toast('Khách chưa có ảnh', true);
+    openSheet('<div class="row"><b class="grow">' + esc(S.cur.name) + '</b><button class="btn sm ghost" onclick="closeSheet()">Đóng</button></div><img class="pv" src="' + u + '" alt="">' +
+      '<button class="btn ghost" onclick="closeSheet();pickPhoto()">Đổi ảnh</button>');
+  }).catch(() => {});
+}
 function modelTxt(c) { return c.model ? c.model + (c.modelNow && c.modelNow !== c.model ? ' → ' + c.modelNow : '') : ''; }
 function chips(name, opts, val) { return '<div class="chips" data-name="' + name + '">' + opts.map(o => '<button type="button" class="chip' + (o === val ? ' on' : '') + '" data-val="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div>'; }
 function chipVal(root, name) { const b = root.querySelector('.chips[data-name="' + name + '"] .chip.on'); return b ? b.dataset.val : ''; }
@@ -257,7 +313,7 @@ function card(c) {
   const lh = c.contacts.length ? '<ol class="lh">' + c.contacts.map(x => '<li><span>' + esc(x.d) + '</span><em><b>' + esc(x.form) + '</b>' + (x.note ? ' – ' + esc(x.note) : '') + '</em></li>').join('') + '</ol>' : '';
   const open = c.status !== 'Đã chốt' && c.status !== 'Mất', ri = rtIdx(c.rating);
   return '<div class="card tap' + (open ? ' rkc rt' + ri : '') + '" onclick="openCust(\'' + esc(c.phone) + '\')">' +
-    '<div class="row"><div class="grow"><div class="name">' + (open ? '<span class="rbadge">' + esc(c.rating || 'Chưa đánh giá') + '</span>' : '') + esc(c.name || '(chưa có tên)') + '</div>' +
+    '<div class="row">' + avatar(c, 40) + '<div class="grow"><div class="name">' + (open ? '<span class="rbadge">' + esc(c.rating || 'Chưa đánh giá') + '</span>' : '') + esc(c.name || '(chưa có tên)') + '</div>' +
     '<div class="sub">' + esc(c.phone) + (c.addr || c.huyen ? ' · ' + esc([c.addr, c.huyen].filter(Boolean).join(', ')) : '') + (c.model ? ' · ' + esc(modelTxt(c)) : '') + '</div></div>' +
     '<span class="badge ' + stCls(c.status) + '">' + esc(c.status) + '</span></div>' +
     (c.overdue ? '<div class="tag">Quá hẹn từ ' + esc(c.appt) + '</div>' : c.dueToday ? '<div class="tag" style="color:var(--warn)">Hẹn hôm nay</div>' : c.appt ? '<div class="sub">Hẹn: ' + esc(c.appt) + '</div>' : '') +
@@ -393,7 +449,8 @@ function vDetail() {
   $('#nav').classList.add('hide');
   const back = S.view === 'cust' ? "backToList()" : "backTo()";
   let h = header(c.name || c.phone, back) + '<main>' +
-    '<div class="card"><div class="row"><div class="grow"><div class="name">' + esc(c.name) + '</div><div class="sub">' + esc(c.phone) + '</div></div>' +
+    '<div class="card"><div class="row"><span onclick="' + (c.hasPhoto ? 'viewPhoto()' : 'pickPhoto()') + '" style="cursor:pointer">' + avatar(c, 64) + '</span><div class="grow"><div class="name">' + esc(c.name) + '</div><div class="sub">' + esc(c.phone) + '</div>' +
+    '<span class="photoBtn" onclick="pickPhoto()">' + (c.hasPhoto ? 'Đổi ảnh' : '+ Thêm ảnh khách') + '</span>' + (c.hasPhoto ? ' · <span class="photoBtn" onclick="viewPhoto()">Xem ảnh lớn</span>' : '') + '</div>' +
     '<span class="badge ' + stCls(c.status) + '">' + esc(c.status) + '</span></div>' +
     '<div class="sub" style="margin-top:6px">' + esc([c.addr, c.huyen, c.tinh].filter(Boolean).join(', ')) + '</div>' +
     '<div class="sub rt' + rtIdx(c.rating) + '" style="margin-top:4px"><span class="rbadge">Tiềm năng: ' + esc(c.rating || 'chưa đánh giá') + '</span>Model: ' + esc(modelTxt(c) || '–') + ' · Nguồn: ' + esc(c.source || '–') + '</div>' +
@@ -445,7 +502,7 @@ function formContact() {
     '<div id="apptBox" class="' + (st0 === 'Đang chăm sóc' ? '' : 'hide') + '"><label>Hẹn gọi lại</label>' +
     chips('quick', ['Ngày mai', '3 ngày', '1 tuần', '2 tuần', '1 tháng'], '') +
     '<input id="fa" type="date" min="' + iso(new Date()) + '" value="' + esc(c.overdue ? '' : c.apptIso) + '"></div>' +
-    '<label>Model quan tâm</label>' + modelSelect('fm', c.model) +
+    '<label>Model quan tâm</label>' + modelSelect('fm', c.model) + photoInput('fph') +
     '<button class="btn" id="fsave">Lưu</button>');
   const box = $('#sheetBox');
   box.addEventListener('pick', e => {
@@ -460,7 +517,8 @@ function formContact() {
     if (p.status === 'Đã chốt' && (!p.model || p.model === 'Chưa xác định')) return toast('Khách đã chốt: chọn model khách mua', true);
     if (p.status === 'Đang chăm sóc' && !p.appt && !confirm('Chưa đặt ngày hẹn gọi lại. Vẫn lưu?')) return;
     $('#fsave').disabled = true;
-    api('saveContact', S.token, p).then(() => { closeSheet(); toast('Đã lưu'); openCust(c.phone); }).catch(() => { $('#fsave').disabled = false; });
+    const ph = $('#fph').files[0];
+    api('saveContact', S.token, p).then(() => { closeSheet(); toast('Đã lưu'); return uploadPhoto(c.phone, ph).catch(() => {}); }).then(() => openCust(c.phone)).catch(() => { $('#fsave').disabled = false; });
   };
 }
 
@@ -478,7 +536,7 @@ function vAdd() {
     '<label>Mức tiềm năng *</label>' + chips('rating', RT, '') +
     '<div class="sub" style="margin:-4px 0 8px">Cao: sắp mua · Trung bình: đang cân nhắc · Thấp: mới hỏi thăm</div>' +
     '<label>Model quan tâm</label>' + modelSelect('nm', '') +
-    '<label>Ghi chú</label><textarea id="nnote"></textarea>' +
+    '<label>Ghi chú</label><textarea id="nnote"></textarea>' + photoInput('nph') +
     '<label>Hẹn gọi lại</label>' + chips('quick', ['Ngày mai', '3 ngày', '1 tuần'], '') + '<input id="nd" type="date" min="' + iso(new Date()) + '">' +
     (isMgr() ? '<label>Giao cho</label><select id="no"><option value="">Tôi</option><option value="__none">– Chưa giao –</option>' + cfg.staff.map(s => '<option>' + esc(s) + '</option>').join('') + '</select>' : '') +
     '<button class="btn" id="nsave">Lưu khách</button></div></main>';
@@ -495,10 +553,11 @@ function vAdd() {
     p.rating = chipVal(box, 'rating');
     if (!p.rating) return toast('Chọn mức tiềm năng', true);
     $('#nsave').disabled = true;
+    const ph = $('#nph').files[0];
     api('createLead', S.token, p).then(r => {
-      if (r.exists) { toast('Số này đã có trong danh sách, mở hồ sơ cũ để cập nhật'); }
-      else toast('Đã thêm khách');
-      S.view = 'cust'; openCust(r.phone);
+      if (r.exists) { toast('Số này đã có trong danh sách, mở hồ sơ cũ để cập nhật'); S.view = 'cust'; openCust(r.phone); return; }
+      toast('Đã thêm khách');
+      return (ph ? uploadPhoto(r.phone, ph).catch(() => {}) : Promise.resolve()).then(() => { S.view = 'cust'; openCust(r.phone); });
     }).catch(() => { $('#nsave').disabled = false; });
   };
 }
