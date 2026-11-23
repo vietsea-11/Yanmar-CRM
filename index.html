@@ -799,6 +799,7 @@ const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; showInstall(); });
 function installHtml() {
   if (isStandalone()) return '';
+  if (/Zalo|FBAN|FBAV|FB_IAB|Messenger|Instagram|Line\//i.test(navigator.userAgent)) return '<div class="install" style="border-color:var(--red)"><b>Đang mở trong ' + (/Zalo/i.test(navigator.userAgent) ? 'Zalo' : 'Facebook') + '.</b> Để cài app và dùng ổn định: bấm <b>⋯</b> (hoặc <b>⋮</b>) ở góc trên, chọn <b>Mở bằng trình duyệt</b> (' + (isIOS() ? 'Safari' : 'Chrome') + ').</div>';
   if (isIOS()) return '<div class="install"><b>Cài app lên iPhone:</b> bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên lên) ở thanh dưới Safari, chọn <b>Thêm vào MH chính</b>, rồi bấm <b>Thêm</b>.</div>';
   if (deferredPrompt) return '<div class="install"><b>Cài app lên điện thoại</b> để mở nhanh như ứng dụng thật.<button class="btn" style="margin-top:8px" onclick="doInstall()">Cài đặt Yanmar CRM</button></div>';
   return '<div class="install"><b>Cài app lên Android:</b> bấm <b>⋮</b> góc trên Chrome, chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</div>';
