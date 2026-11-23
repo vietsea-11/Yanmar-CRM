@@ -661,7 +661,7 @@ function vExport() {
   app.innerHTML = header('Xuất danh sách PDF', 'vCust()') + '<main><div class="card">' +
     '<div class="sub" style="margin-bottom:8px">Lọc khách ' + (isMgr() ? 'của đại lý' : 'của anh/chị') + ' theo địa bàn để in danh sách đi chăm sóc, mời dự sự kiện, trình diễn máy.</div>' +
     '<label>Loại danh sách</label><select id="exK"></select>' +
-    '<label>Mức tiềm năng</label><select id="exR"><option value="">Tất cả mức</option>' + RT.concat(['none']).map(r => '<option value="' + r + '"' + (r === E.rating ? ' selected' : '') + '>' + (r === 'none' ? 'Chưa đánh giá' : r) + '</option>').join('') + '</select>' +
+    '<label>Mức tiềm năng</label><select id="exRt"><option value="">Tất cả mức</option>' + RT.concat(['none']).map(r => '<option value="' + r + '"' + (r === E.rating ? ' selected' : '') + '>' + (r === 'none' ? 'Chưa đánh giá' : r) + '</option>').join('') + '</select>' +
     '<label>Model</label><select id="exM"><option value="">Tất cả model</option>' + (S.cfg.models || []).map(m => '<option' + (m === E.model ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' +
     (isMgr() ? '<label>Nhân viên phụ trách</label><select id="exO"><option value="">Toàn đại lý</option>' + S.cfg.staff.map(x => '<option' + (x === E.owner ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select>' : '') +
     '<label>Tỉnh</label><select id="exT"></select><label>Huyện</label><select id="exH"></select><label>Xã, thôn</label><select id="exX"></select>' +
@@ -685,7 +685,7 @@ function vExport() {
     fill();
   }).catch(() => {});
   $('#exK').onchange = e => { E.kind = e.target.value; count(); };
-  $('#exR').onchange = e => { E.rating = e.target.value; count(); };
+  $('#exRt').onchange = e => { E.rating = e.target.value; count(); };
   $('#exM').onchange = e => { E.model = e.target.value; count(); };
   $('#exT').onchange = e => { E.tinh = e.target.value; E.huyen = ''; E.xa = ''; fill(); };
   $('#exH').onchange = e => { E.huyen = e.target.value; E.xa = ''; fill(); };
